@@ -1,12 +1,11 @@
 import numpy as np
 import time
-import torch
+# import torch
 import math
 import threading
 from typing import List, Dict, Optional, Tuple, Union, Any
 import os
 import yaml
-import torch
 import open3d as o3d
 from scipy.spatial.transform import Rotation
 import pathlib
@@ -25,7 +24,7 @@ import stretch_body.wacc as wacc
 import stretch_body.hello_utils as hello_utils
 import stretch_body.robot as stretch_robot
 
-# # CuRobo imports -- all the imports I need stretch import equivalents
+# CuRobo imports -- all the imports I need stretch import equivalents
 # from curobo.src.curobo.geom.sdf.world import CollisionCheckerType
 # # from curobo.geom.types import Cuboid, WorldConfig, Mesh
 # from curobo.src.curobo.types.base import TensorDeviceType
@@ -370,67 +369,67 @@ class StretchMotionPlanner:
             return None
         
 
-    def get_camera_transform(self):
-            # Check if motion generator is properly initialized
-            if self.motion_gen is None:
-                print("Motion generator not initialized")
-                return None, None
+    # def get_camera_transform(self):
+    #         # Check if motion generator is properly initialized
+    #         if self.motion_gen is None:
+    #             print("Motion generator not initialized")
+    #             return None, None
             
-            if not hasattr(self.motion_gen, 'kinematics') or self.motion_gen.kinematics is None:
-                print("Motion generator kinematics not available")
-                return None, None
+    #         if not hasattr(self.motion_gen, 'kinematics') or self.motion_gen.kinematics is None:
+    #             print("Motion generator kinematics not available")
+    #             return None, None
                 
-            joints = self.get_robot_joint_state()
-            if joints is None:
-                return None, None
-            config = torch.from_numpy(np.array(joints))
-            config = config.cuda("cuda")
-            config = config.to(torch.float32)
+    #         joints = self.get_robot_joint_state()
+    #         if joints is None:
+    #             return None, None
+    #         config = torch.from_numpy(np.array(joints))
+    #         config = config.cuda("cuda")
+    #         config = config.to(torch.float32)
             
-            state = self.motion_gen.kinematics.get_state(config)
-            # Extract camera pose and quaternion with better debugging
-            camera_pose = state.links_position.cpu().numpy()[0][1]  # [x, y, z]
-            camera_quat_raw = state.links_quaternion.cpu().numpy()[0][1]
-             # Handle different quaternion formats that might be returned
-            if len(camera_quat_raw.shape) == 1 and camera_quat_raw.shape[0] == 4:
-                # Simple quaternion array [x, y, z, w]
-                camera_quat = camera_quat_raw
-            elif len(camera_quat_raw.shape) == 2:
-                # Get the last quaternion if multiple are returned
-                camera_quat = camera_quat_raw[-1]
-            elif len(camera_quat_raw.shape) == 3:
-                # 3D array - get the last element along the first dimension
-                camera_quat = camera_quat_raw[-1]
-                if len(camera_quat.shape) == 2:
-                    # If still 2D, flatten or take appropriate element
-                    if camera_quat.shape[0] == 1:
-                        camera_quat = camera_quat[0]
-                    else:
-                        camera_quat = camera_quat.flatten()[:4]  # Take first 4 elements
-            else:
-                raise ValueError(f"Unexpected quaternion shape: {camera_quat_raw.shape}")
+    #         state = self.motion_gen.kinematics.get_state(config)
+    #         # Extract camera pose and quaternion with better debugging
+    #         camera_pose = state.links_position.cpu().numpy()[0][1]  # [x, y, z]
+    #         camera_quat_raw = state.links_quaternion.cpu().numpy()[0][1]
+    #          # Handle different quaternion formats that might be returned
+    #         if len(camera_quat_raw.shape) == 1 and camera_quat_raw.shape[0] == 4:
+    #             # Simple quaternion array [x, y, z, w]
+    #             camera_quat = camera_quat_raw
+    #         elif len(camera_quat_raw.shape) == 2:
+    #             # Get the last quaternion if multiple are returned
+    #             camera_quat = camera_quat_raw[-1]
+    #         elif len(camera_quat_raw.shape) == 3:
+    #             # 3D array - get the last element along the first dimension
+    #             camera_quat = camera_quat_raw[-1]
+    #             if len(camera_quat.shape) == 2:
+    #                 # If still 2D, flatten or take appropriate element
+    #                 if camera_quat.shape[0] == 1:
+    #                     camera_quat = camera_quat[0]
+    #                 else:
+    #                     camera_quat = camera_quat.flatten()[:4]  # Take first 4 elements
+    #         else:
+    #             raise ValueError(f"Unexpected quaternion shape: {camera_quat_raw.shape}")
             
-            # print(f"Debug - Final camera_quat shape: {camera_quat.shape}, value: {camera_quat}")
+    #         # print(f"Debug - Final camera_quat shape: {camera_quat.shape}, value: {camera_quat}")
             
-            # Ensure we have exactly 4 elements for quaternion
-            if camera_quat.shape[0] != 4:
-                raise ValueError(f"Expected 4 quaternion elements, got {camera_quat.shape[0]}")
-            import copy
-            # Create transformation matrix from end-effector to base
-            camera_quat_copy = copy.deepcopy(camera_quat)
-            camera_quat = np.array([camera_quat_raw[1], camera_quat_raw[2], camera_quat_raw[3], camera_quat_raw[0]])
+    #         # Ensure we have exactly 4 elements for quaternion
+    #         if camera_quat.shape[0] != 4:
+    #             raise ValueError(f"Expected 4 quaternion elements, got {camera_quat.shape[0]}")
+    #         import copy
+    #         # Create transformation matrix from end-effector to base
+    #         camera_quat_copy = copy.deepcopy(camera_quat)
+    #         camera_quat = np.array([camera_quat_raw[1], camera_quat_raw[2], camera_quat_raw[3], camera_quat_raw[0]])
             
-            # print(f"Debug - joint state: {config}")
-            # print(f"Debug - camera_pose shape: {camera_pose.shape}, value: {list(camera_pose)}")
-            # print(f"Debug - camera_quat_raw shape: {camera_quat.shape}")
-            # print(f"Debug - camera_quat_raw: {list(camera_quat)}")
-            # print(f"Debug - camera_quat_raw norm: {np.linalg.norm(list(camera_quat_raw))}")
-            # print()
-            # print()
-            # print()
+    #         # print(f"Debug - joint state: {config}")
+    #         # print(f"Debug - camera_pose shape: {camera_pose.shape}, value: {list(camera_pose)}")
+    #         # print(f"Debug - camera_quat_raw shape: {camera_quat.shape}")
+    #         # print(f"Debug - camera_quat_raw: {list(camera_quat)}")
+    #         # print(f"Debug - camera_quat_raw norm: {np.linalg.norm(list(camera_quat_raw))}")
+    #         # print()
+    #         # print()
+    #         # print()
             
-            camera_rotation = Rotation.from_quat(camera_quat)
-            return camera_pose, camera_rotation
+    #         camera_rotation = Rotation.from_quat(camera_quat)
+    #         return camera_pose, camera_rotation
         
     
     def _get_current_configuration(self):
