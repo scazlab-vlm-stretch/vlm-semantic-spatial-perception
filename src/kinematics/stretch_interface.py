@@ -6,6 +6,7 @@ import threading
 from typing import List, Dict, Optional, Tuple, Union, Any
 import os
 import yaml
+
 import open3d as o3d
 from scipy.spatial.transform import Rotation
 import pathlib
@@ -326,7 +327,7 @@ class StretchMotionPlanner:
             
         try:
             with self.arm_lock:
-                if hasattr(self.arm, "_g et_stretch_join_positions"):
+                if hasattr(self.arm, "_get_stretch_joint_positions"):
                     joints = self._get_stretch_joint_positions()
                     if joints is None:
                         print(f"Failed to get joint state, error code")
