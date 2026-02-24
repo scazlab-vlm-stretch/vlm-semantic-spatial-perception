@@ -350,7 +350,7 @@ class StretchMotionPlanner:
                 
                 T = self.get_transform("base_link", "link_grasp_center")
                 pose = T[:3, 3]
-                quat = R.from_matrix(T[:3,3]).as_quat()
+                quat = R.from_matrix(T[:3, :3]).as_quat()
                 #[[R R R x]
                 #  [R R R y]
                 #  [R R R z]
