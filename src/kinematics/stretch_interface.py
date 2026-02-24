@@ -15,15 +15,15 @@ from scipy.spatial.transform import Rotation as R
 
 
 #Stretch imports
-from stretch_robot.device import Device
-import stretch_robot.base as base
-import stretch_robot.arm as arm
-import stretch_robot.lift as lift
-import stretch_robot.pimu as pimu
-import stretch_robot.head as head
-import stretch_robot.wacc as wacc
-import stretch_robot.hello_utils as hello_utils
-import stretch_robot.robot as stretch_robot
+from stretch_body.device import Device
+import stretch_body.base as base
+import stretch_body.arm as arm
+import stretch_body.lift as lift
+import stretch_body.pimu as pimu
+import stretch_body.head as head
+import stretch_body.wacc as wacc
+import stretch_body.hello_utils as hello_utils
+import stretch_body.robot as stretch_robot
 
 # CuRobo imports -- all the imports I need stretch import equivalents
 # from curobo.src.curobo.geom.sdf.world import CollisionCheckerType
