@@ -225,14 +225,6 @@ class StretchMotionPlanner:
             joints.append(pos)
         return joints
         
-        # if self.robot is None:
-        #     return None
-        # joints = []
-        # status = getattr(self.robot, "status", {}) or {}
-        # if "lift" in status and "pos" in status["lift"]:
-        #     joints.append(status["lift"]["pos"])
-        # if "arm" in status and "pos" in status["arm"]:
-        #     joints.append(status["arm"]["pos"])
         # end_of_arm = status.get("end_of_arm", {}) or {}
         # for name in ("wrist_yaw", "wrist_pitch", "wrist_roll", "gripper"):
         #     if name in end_of_arm and "pos" in end_of_arm[name]:
@@ -268,7 +260,7 @@ class StretchMotionPlanner:
             pass
 
         try:
-            tcp = self.get_robot_tcp_pose() ###
+            tcp = self.get_robot_tcp_pose()
             if isinstance(tcp, tuple) and len(tcp) == 2:
                 pos, quat = tcp
                 state["tcp_pose"] = {
@@ -500,8 +492,63 @@ class StretchMotionPlanner:
         fromframe_to_toframe = np.linalg.inv(baselink_to_fromframe).dot(baselink_to_toframe)
         return fromframe_to_toframe
     
+    #trajectory objects holds / calculated using:
+    # goalpose: position tensor + quaternion tensor
+    # startpose: current joint state (in a batch)
+    # curobo has some sort of planning mechanism that finds the best path
+    # calculates motion to final pose (using motion_gen), which uses start state, goal pose, and plan config.
+        
 
-###
+    def execute_trajectory(self):
+        print('move all joints to initial positions')
+        self.robot.arm.move_to(0.0)
+        self.robot.lift.move_to(0.2)
+        self.robot.push_command()
+        # self.robot.head.pose('ahead')
+        self.robot.end_of_arm.motors['wrist_yaw'].pose('side')
+        time.sleep(4.0)
+
+        self.robot.lift.trajectory.add(t_s=0.0, x_m=0.2, v_m=0.0)
+        self.robot.lift.trajectory.add(t_s=10.0, x_m=0.9, v_m=0.0)
+        self.robot.lift.trajectory.add(t_s=20.0, x_m=0.2, v_m=0.0)
+
+        self.robot.arm.trajectory.add(t_s=0.0, x_m=0.0, v_m=0.0)
+        self.robot.arm.trajectory.add(t_s=10.0, x_m=0.5, v_m=0.0)
+        self.robot.arm.trajectory.add(t_s=20.0, x_m=0.0, v_m=0.0)
+
+        # self.robot.base.trajectory.add(time=0.0, x=0,y=0, theta=math.radians(0.0), translational_vel=0.0, rotational_vel=0.0 )
+        # self.robot.base.trajectory.add(time=10.0, x=0,y=0, theta=math.radians(180.0), translational_vel=0.0, rotational_vel=0.0)
+        # self.robot.base.trajectory.add(time=20.0,  x=0,y=0,theta=math.radians(0.0), translational_vel=0.0, rotational_vel=0.0)
+
+        self.robot.end_of_arm.motors['wrist_yaw'].trajectory.add(t_s=0.0, x_r=math.radians(90.0), v_r=0.0)
+        self.robot.end_of_arm.motors['wrist_yaw'].trajectory.add(t_s=10.0, x_r=math.radians(-45.0), v_r=0.0)
+        self.robot.end_of_arm.motors['wrist_yaw'].trajectory.add(t_s=20.0, x_r=math.radians(90.0), v_r=0.0)
+        #r.end_of_arm.motors['wrist_yaw'].trajectory.add_waypoint(t_s=40.0, x_r=math.radians(180.0), v_r=0.0)
+
+        # self.robot.head.get_joint('head_tilt').trajectory.add(t_s=0.0, x_r=math.radians(0.0), v_r=0.0)
+        # self.robot.head.get_joint('head_tilt').trajectory.add(t_s=10.0, x_r=math.radians(-90.0), v_r=0.0)
+        # self.robot.head.get_joint('head_tilt').trajectory.add(t_s=20.0, x_r=math.radians(0.0), v_r=0.0)
+
+        # self.robot.head.get_joint('head_pan').trajectory.add(t_s=0.0, x_r=math.radians(0.0), v_r=0.0)
+        # self.robot.head.get_joint('head_pan').trajectory.add(t_s=10.0, x_r=math.radians(-180.0), v_r=0.0)
+        # self.robot.head.get_joint('head_pan').trajectory.add(t_s=20.0, x_r=math.radians(0.0), v_r=0.0)
+
+        print('start follow_trajectory')
+        print('Remove all cables from base. Ensure robot is clear to make full body motion.')
+        print('Hit enter when ready.')
+        input()
+        self.robot.follow_trajectory()
+        ts = time.time()
+        while self.robot.is_trajectory_active():
+            #dt = (time.time() - ts) / 20.0  # 0-1
+            print('Time remaining: %f'%(20.0-(time.time()-ts)))
+            # r.base.set_translate_velocity(v_m=dt*0.5) #Uncomment this for base motion (put up on blocks first!)
+            #r.push_command()
+            time.sleep(0.1)
+
+        self.robot.stop_trajectory()
+        self.robot.stop()
+        print('done')
 
     # def joint_state_callback(self, data):
     #     """Callback function for joint state updates from the robot
