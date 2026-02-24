@@ -217,19 +217,14 @@ class StretchMotionPlanner:
             return None
         self.arm.pull_status()
 
-        status = getattr(self.arm, "status", None)
-        if not status:
-            return []
-        end_of_arm = status.get("end_of_arm")
-        if not end_of_arm:
-            return []
+        status = self.arm.status
         joints = []
-        for name in ("wrist_yaw", "wrist_pitch", "wrist_roll", "stretch_gripper"):
-            joint = end_of_arm.get(name)
-            if joint is not None:
-                pos = joint.get("pos") #vel, effort
-                if pos is not None:
-                    joints.append(pos)
+
+        ##end_of_arm
+        end_of_arm = status["end_of_arm"] #end_of_gripper contains wrist_yaw and stretch_gripper
+        for s in end_of_arm.keys():
+            pos = end_of_arm[s].get("pos") #pos, vel, effort
+            joints.append(pos)
         return joints
         
         # if self.robot is None:
