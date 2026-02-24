@@ -316,24 +316,23 @@ class StretchMotionPlanner:
         Returns:
             numpy.ndarray: Joint positions in radians or None if not available
         """
-        # if self.arm is None:
-        #     print("Robot not connected")
-        #     return None
+
+        if self.arm is None:
+            print("Robot not connected")
+            return None
         
-        with self.arm_lock:
-            if hasattr(self.arm, "_get_stretch_joint_positions"):
+        try:
+            with self.arm_lock:
                 joints = self._get_stretch_joint_positions()
-                # if joints is None:
-                #     print(f"Failed to get joint state, error code")
-                #     return None
+                if joints is None:
+                    print(f"Failed to get joint state, error code")
+                    return None
                 self.set_current_joint_state(joints)
                 return np.array(joints)
             
-        # try:
-
-        # except Exception as e:
-        #     print(f"Error getting robot joint state: {str(e)}")
-        #     return None
+        except Exception as e:
+            print(f"Error getting robot joint state: {str(e)}")
+            return None
     
     def get_robot_tcp_pose(self): #tcp = tool center point = likely the tip of gripper.
         """Get current TCP position and orientation from the physical robot
