@@ -15,15 +15,15 @@ from scipy.spatial.transform import Rotation as R
 
 
 #Stretch imports
-from stretch_body.device import Device
-import stretch_body.base as base
-import stretch_body.arm as arm
-import stretch_body.lift as lift
-import stretch_body.pimu as pimu
-import stretch_body.head as head
-import stretch_body.wacc as wacc
-import stretch_body.hello_utils as hello_utils
-import stretch_body.robot as stretch_robot
+from stretch_robot.device import Device
+import stretch_robot.base as base
+import stretch_robot.arm as arm
+import stretch_robot.lift as lift
+import stretch_robot.pimu as pimu
+import stretch_robot.head as head
+import stretch_robot.wacc as wacc
+import stretch_robot.hello_utils as hello_utils
+import stretch_robot.robot as stretch_robot
 
 # CuRobo imports -- all the imports I need stretch import equivalents
 # from curobo.src.curobo.geom.sdf.world import CollisionCheckerType
@@ -102,7 +102,6 @@ class StretchMotionPlanner:
         self.joint_state_lock = threading.Lock()
         
         # Initialize Stretch SDK
-        self.arm = None
         self.robot = None
         self.arm_lock = threading.Lock()
         
@@ -140,7 +139,7 @@ class StretchMotionPlanner:
         
         self.initial_position = None
 
-        if self.arm is not None:
+        if self.robot is not None:
             # if not self.arm.is_homed():
             #     self.arm.home()
             self.initial_position = self.get_robot_joint_state()
@@ -199,7 +198,6 @@ class StretchMotionPlanner:
             with self.arm_lock:
                 self.robot = stretch_robot.Robot()
                 self.robot.startup()
-                self.arm = self.robot
 
                 joints = self._get_stretch_joint_positions()
                 # code, angles = self.arm.get_servo_angle(is_radian=True)
@@ -209,15 +207,15 @@ class StretchMotionPlanner:
         except Exception as e:
             print(f"Failed to connect to the Stretch robot: {str(e)}")
             self.robot = None
-            self.arm = None
+            self.robot = None
                 
     def _get_stretch_joint_positions(self) -> Optional[List[float]]:
         #JUST THE END OF ARM -- may have to run self.arm.pull_status()
-        if self.arm is None:
+        if self.robot is None:
             return None
-        self.arm.pull_status()
+        self.robot.pull_status()
 
-        status = self.arm.status
+        status = self.robot.status
         joints = []
 
         ##end_of_arm
@@ -317,7 +315,7 @@ class StretchMotionPlanner:
             numpy.ndarray: Joint positions in radians or None if not available
         """
 
-        if self.arm is None:
+        if self.robot is None:
             print("Robot not connected")
             return None
         
@@ -340,7 +338,7 @@ class StretchMotionPlanner:
         Returns:
             tuple: (position, orientation) or None if not available
         """
-        if self.arm is None:
+        if self.robot is None:
             print("Robot not connected")
             return None
     
@@ -433,13 +431,13 @@ class StretchMotionPlanner:
         def bound_range(name, value):
             return min(max(value, self.urdf.joint_map[name].limit.lower), self.urdf.joint_map[name].limit.upper)
 
-        tool = self.arm.end_of_arm.name
+        tool = self.robot.end_of_arm.name
         if tool == 'tool_stretch_gripper':
-            q_lift = bound_range('joint_lift', self.body.lift.status['pos'])
-            q_arml = bound_range('joint_arm_l0', self.body.arm.status['pos'] / 4.0)
-            q_yaw = bound_range('joint_wrist_yaw', self.body.end_of_arm.status['wrist_yaw']['pos'])
-            q_pan = bound_range('joint_head_pan', self.body.head.status['head_pan']['pos'])
-            q_tilt = bound_range('joint_head_tilt', self.body.head.status['head_tilt']['pos'])
+            q_lift = bound_range('joint_lift', self.robot.lift.status['pos'])
+            q_arml = bound_range('joint_arm_l0', self.robot.arm.status['pos'] / 4.0)
+            q_yaw = bound_range('joint_wrist_yaw', self.robot.end_of_arm.status['wrist_yaw']['pos'])
+            q_pan = bound_range('joint_head_pan', self.robot.head.status['head_pan']['pos'])
+            q_tilt = bound_range('joint_head_tilt', self.robot.head.status['head_tilt']['pos'])
             return {
                 'joint_left_wheel': 0.0,
                 'joint_right_wheel': 0.0,
@@ -455,13 +453,13 @@ class StretchMotionPlanner:
                 'joint_head_tilt': q_tilt
             }
         elif tool == 'tool_stretch_dex_wrist' or tool == 'eoa_wrist_dw3_tool_sg3':
-            q_lift = bound_range('joint_lift', self.body.lift.status['pos'])
-            q_arml = bound_range('joint_arm_l0', self.body.arm.status['pos'] / 4.0)
-            q_yaw = bound_range('joint_wrist_yaw', self.body.end_of_arm.status['wrist_yaw']['pos'])
-            q_pitch = bound_range('joint_wrist_pitch', self.body.end_of_arm.status['wrist_pitch']['pos'])
-            q_roll = bound_range('joint_wrist_roll', self.body.end_of_arm.status['wrist_roll']['pos'])
-            q_pan = bound_range('joint_head_pan', self.body.head.status['head_pan']['pos'])
-            q_tilt = bound_range('joint_head_tilt', self.body.head.status['head_tilt']['pos'])
+            q_lift = bound_range('joint_lift', self.robot.lift.status['pos'])
+            q_arml = bound_range('joint_arm_l0', self.robot.arm.status['pos'] / 4.0)
+            q_yaw = bound_range('joint_wrist_yaw', self.robot.end_of_arm.status['wrist_yaw']['pos'])
+            q_pitch = bound_range('joint_wrist_pitch', self.robot.end_of_arm.status['wrist_pitch']['pos'])
+            q_roll = bound_range('joint_wrist_roll', self.robot.end_of_arm.status['wrist_roll']['pos'])
+            q_pan = bound_range('joint_head_pan', self.robot.head.status['head_pan']['pos'])
+            q_tilt = bound_range('joint_head_tilt', self.robot.head.status['head_tilt']['pos'])
             return {
                 'joint_left_wheel': 0.0,
                 'joint_right_wheel': 0.0,
