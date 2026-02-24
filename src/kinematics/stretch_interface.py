@@ -344,9 +344,9 @@ class StretchMotionPlanner:
     
         try:
             with self.arm_lock:
-                joints = self.get_robot_joint_state()
-                if joints is None:
-                    return None
+                # joints = self.get_robot_joint_state()
+                # if joints is None:
+                #     return None
                 
                 T = self.get_transform("base_link", "link_grasp_center")
                 pose = T[:3, 3]
