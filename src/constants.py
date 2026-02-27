@@ -1,0 +1,1 @@
+joint_names = ["tool_stretch_gripper", "lift"]

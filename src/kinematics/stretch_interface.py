@@ -24,6 +24,7 @@ import stretch_body.head as head
 import stretch_body.wacc as wacc
 import stretch_body.hello_utils as hello_utils
 import stretch_body.robot as stretch_robot
+import constants
 
 # CuRobo imports -- all the imports I need stretch import equivalents
 # from curobo.src.curobo.geom.sdf.world import CollisionCheckerType
@@ -497,7 +498,69 @@ class StretchMotionPlanner:
     # startpose: current joint state (in a batch)
     # curobo has some sort of planning mechanism that finds the best path
     # calculates motion to final pose (using motion_gen), which uses start state, goal pose, and plan config.
+
+
+    def execute_trajectory(self, trajectory, dt, speed_factor=1.0):
+        """Execute a trajectory on the physical robot with improved error handling
         
+        Args:
+            trajectory: Joint trajectory as {joint1: {[t1, x1, v1], [t2, x2, v2], ...}, join2: {[t,x,v], ...}, ...}. But for now, just a list of 
+            dt: Time step between trajectory points in seconds
+            speed_factor: Factor to scale execution speed (>1 is faster)
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+
+        if self.robot is None:
+            print("Robot not connected")
+            return False
+            
+        if not trajectory or len(trajectory) == 0:
+            print("Empty trajectory provided")
+            return False
+
+        try:
+            # for now, just the end_of_arm joint. figure out how to iterate later.
+            self.robot.stop_trajectory() # any currently running trajectory is overwritten by function call
+
+            self.robot.end_of_arm.motors['wrist_yaw'].trajectory.clear()
+
+            for point in trajectory:
+                # LATER PROBLEM: SOME SORT OF COLLISION CHECKER HERE. Note: by default, robot stops trajectory if it detects collision.
+                self.robot.end_of_arm.motors['wrist_yaw'].trajectory.add(t_s=point[0], x_r=point[1], v_r=point[2])
+
+            self.robot.follow_trajectory()
+            ts = time.time()
+            adjusted_dt = dt / speed_factor  # Adjust time step based on speed factor
+                #note: Liam's code moves trajectory PER POINT along the path, hence the dt between points. I can adjust to this (for-loop through points), or make t_s = dt, or just exclude adjusted_dt entirely..
+            
+            while self.robot.is_trajectory_active():
+                #dt = (time.time() - ts) / 20.0  # 0-1
+                print('Time remaining: %f'%(20.0-(time.time()-ts)))
+                # r.base.set_translate_velocity(v_m=dt*0.5) #Uncomment this for base motion (put up on blocks first!)
+                #r.push_command()
+                time.sleep(0.1)
+
+            self.robot.stop_trajectory()
+            print('done')
+
+            return True
+
+            
+        except Exception as e:
+            print(f"Error executing trajectory: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            
+            # Try to set the robot back to a safe mode/state
+            try:
+                self.arm.set_mode(0)  # Position control mode
+                self.arm.set_state(0)  # Ready state
+            except:
+                pass
+            return False
+
 
     def execute_trajectory(self):
         print('move all joints to initial positions')
