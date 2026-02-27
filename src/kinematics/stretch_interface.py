@@ -12,7 +12,7 @@ from scipy.spatial.transform import Rotation
 import pathlib
 from urchin import URDF
 from scipy.spatial.transform import Rotation as R
-# import constants
+from src import constants
 
 #Stretch imports
 from stretch_body.device import Device
