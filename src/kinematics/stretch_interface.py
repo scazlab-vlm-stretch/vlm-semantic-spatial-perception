@@ -499,7 +499,7 @@ class StretchMotionPlanner:
     # calculates motion to final pose (using motion_gen), which uses start state, goal pose, and plan config.
 
 
-    def execute_trajectory(self, trajectory, dt, speed_factor=1.0):
+    def execute_trajectory2(self, trajectory, dt, speed_factor=1.0):
         """Execute a trajectory on the physical robot with improved error handling
         
         Args:
