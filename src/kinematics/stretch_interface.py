@@ -12,7 +12,7 @@ from scipy.spatial.transform import Rotation
 import pathlib
 from urchin import URDF
 from scipy.spatial.transform import Rotation as R
-
+# import constants
 
 #Stretch imports
 from stretch_body.device import Device
@@ -24,7 +24,6 @@ import stretch_body.head as head
 import stretch_body.wacc as wacc
 import stretch_body.hello_utils as hello_utils
 import stretch_body.robot as stretch_robot
-import constants
 
 # CuRobo imports -- all the imports I need stretch import equivalents
 # from curobo.src.curobo.geom.sdf.world import CollisionCheckerType
