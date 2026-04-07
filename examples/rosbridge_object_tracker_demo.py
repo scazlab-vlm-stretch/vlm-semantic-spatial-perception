@@ -39,7 +39,7 @@ COLOR_TOPIC = '/camera/color/image_raw/compressed'
 DEPTH_TOPIC = '/camera/aligned_depth_to_color/image_raw'
 CAMERA_INFO_TOPIC = '/camera/color/camera_info'
 
-THROTTLE_MS = 100       # ms between messages (lower = more CPU)
+THROTTLE_MS = 50       # ms between messages (lower = more CPU)
 QUEUE_LENGTH = 1
 SLOP_SEC = 0.1          # max time diff (s) for color/depth to be considered synced
 
@@ -358,6 +358,7 @@ async def main():
             model_name='auto',
             thinking_budget=0,
             max_parallel_requests=5,
+            fast_mode=True
         )
         print(f'ObjectTracker ready (model: {tracker.model_name})')
     except Exception as e:
