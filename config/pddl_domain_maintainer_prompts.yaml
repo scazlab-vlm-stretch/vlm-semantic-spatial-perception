@@ -1,47 +1,115 @@
-refinement_prompt: |
-  PDDL debugging expert. Fix planning error with focus on valid action chains:
+repair_actions_prompt: |
+  You are repairing the action layer of a robot planning representation.
 
-  ERROR: <<ERROR_MESSAGE>>
-  Task: <<TASK_DESCRIPTION>><<GOAL_OBJECTS_SECTION>><<ROBOT_CONTEXT_SECTION>>
+  Fix action schemas only. Do not change the abstract goal unless the failure
+  proves the goal is impossible to support with the current predicates.
 
-  Domain:
-  <<CURRENT_DOMAIN_PDDL>><<PROBLEM_CONTEXT_SECTION>>
+  Task:
+  <<TASK>>
 
-  Return JSON with:
-  1. "analysis": Root cause and fix summary
-  2. "goal_object_recommendations": If goal objects don't match detected objects in :objects
-  3. "fixes": Domain changes ONLY (not problem file)
-  4. "explanation": Why fixes work
+  Failure context:
+  <<FAILURE_CONTEXT_JSON>>
 
-  CRITICAL: Ensure actions chain correctly - effects must match next action's preconditions.
+  Abstract goal:
+  <<ABSTRACT_GOAL_JSON>>
 
-  VERIFICATION (complete BEFORE returning fixes):
-  a) **Arity**: Every predicate usage must match parameter count in definition
-     - Example: "(holding ?obj)" in :predicates → use "(holding ?x)" in actions (both 1 param)
-  b) **ACTION CHAIN VALIDATION** (MOST IMPORTANT):
-     - For EACH pair of actions that execute in sequence:
-       * List effects produced by first action
-       * List preconditions needed by second action
-       * VERIFY effects satisfy preconditions
-     - Common chains: pick→place, open→access, pour→empty
-     - Example CORRECT: pick effect "(holding ?obj)" → place precondition "(holding ?obj)" ✓
-     - Example BROKEN: pick effect "(holding ?obj)" → place precondition "(grasped ?obj)" ✗
-  c) **Achievability**: Each action's preconditions must be reachable via:
-     - Initial state (from :init), OR other action effects, OR perception predicates
-  d) **Goals**: Each goal must be achievable by at least one action's effects
+  Predicate inventory:
+  <<PREDICATE_INVENTORY_JSON>>
 
-  Rules:
-  - Empty :objects = perception failure, return empty arrays
-  - Goal object mismatch: recommend UPDATE_GOAL, don't add objects
-  - Fix ALL similar issues (e.g., all arity errors, all broken chains)
-  - Match exact indentation/spacing in old_text
-  - Ensure action chains work: effects must produce what next action needs
+  Current actions:
+  <<ACTION_SCHEMAS_JSON>>
 
-  JSON format:
+  Grounding summary:
+  <<GROUNDING_SUMMARY_JSON>>
+
+  Return valid JSON only:
   {
-    "analysis": "problem summary",
-    "goal_object_recommendations": [{"goal_object_expected": "X", "detected_object_actual": "Y", "action": "UPDATE_GOAL"}],
-    "fixes": [{"old_text": "exact match", "new_text": "replacement", "location": "where"}],
-    "explanation": "why this works"
+    "actions": [
+      {
+        "name": "action_name",
+        "parameters": ["?obj"],
+        "precondition": "(and ...)",
+        "effect": "(and ...)",
+        "description": "what changed"
+      }
+    ],
+    "repair_notes": ["short explanation", "..."]
   }
 
+  Rules:
+  - Preserve the current predicate inventory.
+  - Ensure every goal-relevant predicate is achievable or maintainable.
+  - Fix missing action influence, broken action chaining, and malformed schemas.
+
+repair_predicates_prompt: |
+  You are repairing the predicate layer of a robot planning representation.
+
+  Update the predicate inventory so the abstract goal is expressible and the
+  action layer has the state concepts it needs. Keep the inventory minimal.
+
+  Task:
+  <<TASK>>
+
+  Failure context:
+  <<FAILURE_CONTEXT_JSON>>
+
+  Abstract goal:
+  <<ABSTRACT_GOAL_JSON>>
+
+  Current predicate inventory:
+  <<PREDICATE_INVENTORY_JSON>>
+
+  Current actions:
+  <<ACTION_SCHEMAS_JSON>>
+
+  Grounding summary:
+  <<GROUNDING_SUMMARY_JSON>>
+
+  Return valid JSON only:
+  {
+    "predicates": ["(predicate ?x)", "..."],
+    "selection_rationale": ["short explanation", "..."],
+    "omitted_predicates": ["optional omission note", "..."]
+  }
+
+  Rules:
+  - Repair missing or inconsistent predicates first.
+  - Keep only predicates needed for the goal, action semantics, or grounding.
+  - Maintain consistent arity and reusable naming.
+
+repair_goal_prompt: |
+  You are repairing the abstract goal layer of a robot planning representation.
+
+  Adjust the goal only when the action and predicate layers are coherent but the
+  current intent is mis-specified or cannot be grounded as written.
+
+  Task:
+  <<TASK>>
+
+  Failure context:
+  <<FAILURE_CONTEXT_JSON>>
+
+  Current abstract goal:
+  <<ABSTRACT_GOAL_JSON>>
+
+  Predicate inventory:
+  <<PREDICATE_INVENTORY_JSON>>
+
+  Actions:
+  <<ACTION_SCHEMAS_JSON>>
+
+  Grounding summary:
+  <<GROUNDING_SUMMARY_JSON>>
+
+  Return valid JSON only:
+  {
+    "summary": "updated intent summary",
+    "goal_literals": ["(predicate symbolic_object)", "..."],
+    "goal_objects": ["symbolic_object", "..."],
+    "success_checks": ["short human-readable check", "..."]
+  }
+
+  Rules:
+  - Keep the user’s intent intact whenever possible.
+  - Prefer clarifying ambiguous object references or impossible success conditions over broad rewrites.
+  - Do not add unnecessary subgoals.

@@ -77,7 +77,6 @@ class RealSenseCamera(BaseCamera):
 
         self.logger.info(f"Starting RealSense camera: {self.width}x{self.height} @ {self.fps} FPS")
         
-        self.pipeline = rs.pipeline()
         self.config = rs.config()
 
         # Setup filters
@@ -114,50 +113,192 @@ class RealSenseCamera(BaseCamera):
             # Create alignment object to align depth to color
             self.align = rs.align(rs.stream.color)
 
-        # Start pipeline
-        try:
-            self.profile = self.pipeline.start(self.config)
-            self._start_time = time.time()
-            self.logger.info("RealSense pipeline started successfully")
-        except RuntimeError as e:
-            self.logger.error(f"Failed to start RealSense camera: {e}")
-            raise RuntimeError(f"Failed to start RealSense camera: {e}")
-        
-        # Wait for camera to stabilize and ensure we can capture frames
-        max_retries = 30
-        retry_delay = 0.1  # 100ms between retries
-        
-        self.logger.debug(f"Waiting for first valid frame (max {max_retries} attempts)...")
-        
-        for attempt in range(max_retries):
+        max_start_cycles = 3
+        startup_attempts = 30
+        retry_delay = 0.1
+        last_error: Optional[RuntimeError] = None
+
+        # Some RealSense devices occasionally start in a stale USB state where
+        # wait_for_frames() times out repeatedly. Recover with pipeline restarts
+        # first, and only perform one hardware reset as a final startup fallback.
+        reset_attempted = False
+        for cycle in range(1, max_start_cycles + 1):
+            device_for_reset = None
             try:
-                # Try to capture a test frame
-                frames = self.pipeline.wait_for_frames(timeout_ms=1000)
-                
-                if self.align and self.enable_depth:
-                    frames = self.align.process(frames)
-                
-                color_frame = frames.get_color_frame()
-                
-                if color_frame:
-                    # Successfully got a frame
-                    if attempt == 0:
-                        self.logger.info("Camera initialized successfully on first attempt")
-                    else:
-                        self.logger.info(f"Camera initialized successfully after {attempt + 1} attempts")
-                    return
+                self.pipeline = rs.pipeline()
+                self.profile = self.pipeline.start(self.config)
+                self._start_time = time.time()
+                self.logger.info(
+                    "RealSense pipeline started successfully (cycle %s/%s)",
+                    cycle,
+                    max_start_cycles,
+                )
+                ready_attempt = self._wait_for_initial_frames(
+                    max_retries=startup_attempts,
+                    retry_delay=retry_delay,
+                    timeout_ms=1000,
+                )
+                if ready_attempt == 1:
+                    self.logger.info("Camera initialized successfully on first attempt")
                 else:
-                    self.logger.debug(f"Attempt {attempt + 1}: No color frame available")
-                    
-            except RuntimeError as e:
-                self.logger.debug(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
-            
-            time.sleep(retry_delay)
-        
-        # If we get here, we failed to capture a frame
-        self.logger.error(f"Failed to capture initial frame after {max_retries} attempts")
+                    self.logger.info(
+                        "Camera initialized successfully after %s attempts",
+                        ready_attempt,
+                    )
+                return
+            except RuntimeError as exc:
+                last_error = exc
+                if self.profile is not None:
+                    try:
+                        device_for_reset = self.profile.get_device()
+                    except Exception:
+                        device_for_reset = None
+                self.logger.warning(
+                    "RealSense startup cycle %s/%s failed: %s",
+                    cycle,
+                    max_start_cycles,
+                    exc,
+                )
+                self.stop()
+                if cycle < max_start_cycles:
+                    if cycle == (max_start_cycles - 1) and not reset_attempted:
+                        reset_attempted = self._attempt_hardware_reset(device_for_reset)
+                    else:
+                        time.sleep(1.0)
+
+        self.logger.error(
+            "Failed to capture initial frame after %s startup cycles",
+            max_start_cycles,
+        )
         self.stop()
+        if last_error is not None:
+            raise RuntimeError(str(last_error))
+        raise RuntimeError("Failed to start RealSense camera")
+
+    def _wait_for_initial_frames(
+        self,
+        *,
+        max_retries: int,
+        retry_delay: float,
+        timeout_ms: int,
+    ) -> int:
+        """
+        Wait for initial valid camera frames.
+
+        Args:
+            max_retries: Max frame fetch attempts before failing.
+            retry_delay: Delay between attempts in seconds.
+            timeout_ms: Per-attempt wait timeout in milliseconds.
+
+        Returns:
+            int: Attempt number (1-indexed) that first yielded valid frames.
+
+        Raises:
+            RuntimeError: If no valid frames are seen after max_retries.
+        """
+        if self.pipeline is None:
+            raise RuntimeError("Camera pipeline not started")
+
+        self.logger.debug("Waiting for first valid frame (max %s attempts)...", max_retries)
+        for attempt in range(1, max_retries + 1):
+            try:
+                frames = self.pipeline.wait_for_frames(timeout_ms=timeout_ms)
+                color_frame = frames.get_color_frame()
+                depth_frame = frames.get_depth_frame() if self.enable_depth else True
+                if color_frame and depth_frame:
+                    return attempt
+
+                self.logger.debug(
+                    "Startup attempt %s/%s missing frame(s): color=%s depth=%s",
+                    attempt,
+                    max_retries,
+                    bool(color_frame),
+                    bool(depth_frame) if self.enable_depth else True,
+                )
+            except RuntimeError as exc:
+                self.logger.debug(
+                    "Startup attempt %s/%s failed: %s",
+                    attempt,
+                    max_retries,
+                    exc,
+                )
+            time.sleep(retry_delay)
+
         raise RuntimeError(f"Failed to capture initial frame after {max_retries} attempts")
+
+    def _attempt_hardware_reset(self, device: Optional[object] = None) -> bool:
+        """
+        Attempt a RealSense hardware reset between startup retries.
+
+        Args:
+            device: Optional device handle from an existing pipeline profile.
+
+        Returns:
+            bool: True if reset command and reconnection wait completed.
+        """
+        reset_target = device
+        try:
+            if reset_target is None:
+                reset_target = self._get_first_visible_device()
+                if reset_target is None:
+                    self.logger.warning("No RealSense device visible for hardware reset")
+                    time.sleep(1.0)
+                    return False
+
+            serial = None
+            try:
+                serial = reset_target.get_info(rs.camera_info.serial_number)
+            except Exception:
+                pass
+            self.logger.warning("Attempting RealSense hardware reset (serial=%s)", serial)
+            reset_target.hardware_reset()
+            return self._wait_for_device_reconnect(serial, timeout_seconds=20.0)
+        except Exception as exc:
+            self.logger.warning("Hardware reset failed, retrying without reset: %s", exc)
+            time.sleep(1.0)
+            return False
+
+    def _get_first_visible_device(self):
+        """Return the first currently visible RealSense device, if any."""
+        try:
+            devices = rs.context().query_devices()
+            device_count = len(devices)
+        except Exception as exc:
+            self.logger.debug("Failed to query RealSense devices: %s", exc)
+            return None
+
+        for idx in range(device_count):
+            try:
+                return devices[idx]
+            except Exception as exc:
+                self.logger.debug("Skipping inaccessible device index %s: %s", idx, exc)
+        return None
+
+    def _wait_for_device_reconnect(self, serial: Optional[str], timeout_seconds: float) -> bool:
+        """Wait for the RealSense device to re-enumerate after hardware reset."""
+        deadline = time.time() + timeout_seconds
+        while time.time() < deadline:
+            device = self._get_first_visible_device()
+            if device is None:
+                time.sleep(0.5)
+                continue
+
+            if serial is None:
+                return True
+
+            try:
+                if device.get_info(rs.camera_info.serial_number) == serial:
+                    return True
+            except Exception:
+                # Device handle may be mid-reconnect and not yet queryable.
+                pass
+            time.sleep(0.5)
+
+        self.logger.warning(
+            "Timed out waiting for RealSense device reconnection (serial=%s)",
+            serial,
+        )
+        return False
 
     def capture_frame(self) -> np.ndarray:
         """

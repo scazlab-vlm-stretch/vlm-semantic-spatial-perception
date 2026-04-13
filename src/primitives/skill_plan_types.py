@@ -237,69 +237,50 @@ class SkillPlan:
 
 
 PRIMITIVE_LIBRARY: Dict[str, PrimitiveSchema] = {
-    "move_to_pose": PrimitiveSchema(
-        name="move_to_pose",
-        required_params=("target_position",),
-        optional_params=(
-            "target_orientation",
-            "force_top_down",
-            "unconstrained_orientation",
-            "planning_timeout",
-            "execute",
-            "speed_factor",
-            "preset_orientation",
-            "is_place",
-        ),
-        description="Cartesian move to pose; orientation defaults to top-down when omitted.",
-        param_validators={
-            "target_position": _vector_validator(3),
-            "target_orientation": _vector_validator(4),
-            "planning_timeout": _positive_number_validator("planning_timeout"),
-            "speed_factor": _positive_number_validator("speed_factor"),
-        },
-    ),
-    "move_to_pose_with_preparation": PrimitiveSchema(
-        name="move_to_pose_with_preparation",
-        required_params=("target_position",),
-        optional_params=(
-            "target_orientation",
-            "force_top_down",
-            "unconstrained_orientation",
-            "planning_timeout",
-            "execute",
-            "speed_factor",
-            "is_camera_frame",
-            "is_place",
-            "adjust_tcp_for_surface",
-            "tcp_standoff_m",
-            "search_radius_m",
-            "preset_orientation",
-        ),
-        description="Camera-frame aware pose move with optional TCP adjustment and place offset.",
-        param_validators={
-            "target_position": _vector_validator(3),
-            "target_orientation": _vector_validator(4),
-            "planning_timeout": _positive_number_validator("planning_timeout"),
-            "speed_factor": _positive_number_validator("speed_factor"),
-            "tcp_standoff_m": _positive_number_validator("tcp_standoff_m"),
-            "search_radius_m": _positive_number_validator("search_radius_m"),
-        },
-    ),
-    "retract_gripper": PrimitiveSchema(
-        name="retract_gripper",
-        optional_params=("distance", "speed_factor"),
+    # ------------------------------------------------------------------
+    # move_gripper_to_pose  — move EEF to a target pose
+    #   Distinguished from navigate_to_pose (base motion, added later).
+    # ------------------------------------------------------------------
+    "move_gripper_to_pose": PrimitiveSchema(
+        name="move_gripper_to_pose",
+        optional_params=("target_pixel_yx", "target_position", "pivot_point",
+                         "preset_orientation", "is_place",
+                         "point_label", "is_top_down_grasp", "is_side_grasp"),
         allowed_frames=("base", "camera"),
-        description="Back away in Z and return to a neutral joint seed.",
-        param_validators={
-            "distance": _positive_number_validator("distance"),
-            "speed_factor": _positive_number_validator("speed_factor"),
-        },
+        description=(
+            "Move the gripper end-effector to a target pose. "
+            "target_pixel_yx: normalized [y, x] (0-1000) pixel for back-projection. "
+            "target_position: [x, y, z] in base frame (set by executor after back-projection). "
+            "preset_orientation: 'top_down' or 'side'. "
+            "is_place: True when placing (adds z clearance). "
+            "Distinguished from navigate_to_pose (base/mobile platform motion)."
+        ),
     ),
+    # ------------------------------------------------------------------
+    # push_pull  — constrained EEF motion along/about a surface
+    # ------------------------------------------------------------------
+    "push_pull": PrimitiveSchema(
+        name="push_pull",
+        required_params=("surface_label",),
+        optional_params=("force_direction", "is_button", "has_pivot", "hinge_location"),
+        allowed_frames=("base", "camera"),
+        description=(
+            "Push or pull relative to a Surface Map label. "
+            "surface_label: name of the surface or object to interact with. "
+            "force_direction: 'perpendicular' (push into surface) or 'parallel' (slide). "
+            "is_button: True for momentary press-and-retract. "
+            "has_pivot: True for revolute (door/drawer) articulation. "
+            "hinge_location: surface boundary label for the hinge axis."
+        ),
+    ),
+    # ------------------------------------------------------------------
+    # open_gripper / close_gripper / retract_gripper
+    # ------------------------------------------------------------------
     "open_gripper": PrimitiveSchema(
         name="open_gripper",
         optional_params=("wait", "timeout"),
         allowed_frames=("base", "camera"),
-        description="Open gripper via xArm SDK; wait/timeout mirror interface defaults.",
+        description="Open gripper to release held objects.",
         param_validators={
             "timeout": _positive_number_validator("timeout"),
         },
@@ -308,53 +289,33 @@ PRIMITIVE_LIBRARY: Dict[str, PrimitiveSchema] = {
         name="close_gripper",
         optional_params=("wait", "timeout", "simple_close"),
         allowed_frames=("base", "camera"),
-        description="Close gripper (simple or torque-adjusted).",
+        description="Close gripper to acquire a grasp.",
         param_validators={
             "timeout": _positive_number_validator("timeout"),
         },
     ),
-    "plan_push_pull": PrimitiveSchema(
-        name="plan_push_pull",
-        required_params=("distance",),
-        optional_params=(
-            "is_push",
-            "custom_normal",
-            "move_parallel",
-            "planning_timeout",
-            "current_position",
-            "current_orientation",
-            "execute",
-            "speed_factor",
-            "pivot_point",
-            "arc_segments",
-            "hinge_location",
-        ),
-        description="Plan a push/pull along a normal or hinge arc; returns trajectory when execute=True.",
+    "retract_gripper": PrimitiveSchema(
+        name="retract_gripper",
+        optional_params=("distance", "speed_factor"),
+        allowed_frames=("base", "camera"),
+        description="Return the arm to its home/neutral configuration.",
         param_validators={
             "distance": _positive_number_validator("distance"),
-            "custom_normal": _vector_validator(3),
-            "current_position": _vector_validator(3),
-            "current_orientation": _vector_validator(4),
-            "planning_timeout": _positive_number_validator("planning_timeout"),
             "speed_factor": _positive_number_validator("speed_factor"),
         },
     ),
-    "execute_wrist_twist": PrimitiveSchema(
-        name="execute_wrist_twist",
-        optional_params=("direction", "rotation_angle", "speed_factor", "timeout"),
-        allowed_frames=("base", "camera"),
-        description="Rotate final joint using velocity control; direction clockwise|counterclockwise.",
-        param_validators={
-            "rotation_angle": _positive_number_validator("rotation_angle"),
-            "speed_factor": _positive_number_validator("speed_factor"),
-            "timeout": _positive_number_validator("timeout"),
-        },
-    ),
-    "wipe": PrimitiveSchema(
-        name="wipe",
+    # ------------------------------------------------------------------
+    # twist  — wrist rotation about the end-effector Z axis
+    # ------------------------------------------------------------------
+    "twist": PrimitiveSchema(
+        name="twist",
         optional_params=("direction", "rotation_angle_deg", "speed_factor", "timeout"),
         allowed_frames=("base", "camera"),
-        description="Wipe motion using wrist rotation - rotates in specified direction then returns to original position. Direction: 'clockwise' or 'counterclockwise'. Rotation angle in degrees (default 90). Useful for wiping surfaces with held cloth/sponge.",
+        description=(
+            "Rotate the wrist/final joint.  "
+            "direction: 'clockwise' or 'counterclockwise'. "
+            "rotation_angle_deg: degrees to rotate (default 90)."
+        ),
         param_validators={
             "rotation_angle_deg": _positive_number_validator("rotation_angle_deg"),
             "speed_factor": _positive_number_validator("speed_factor"),

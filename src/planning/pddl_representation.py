@@ -734,7 +734,7 @@ class PDDLRepresentation:
         """
         issues = []
 
-        if not self.goal_literals:
+        if not self.goal_literals and not self.goal_formulas:
             issues.append("No goal literals defined")
 
         # Check if goal predicates exist in domain
@@ -765,6 +765,12 @@ class PDDLRepresentation:
 
         # Check if goal predicates can be produced by actions
         goal_predicates = {lit.predicate for lit in self.goal_literals}
+        for formula in self.goal_formulas:
+            for match in re.finditer(r"\(([^()]+)\)", formula):
+                tokens = match.group(1).strip().split()
+                if not tokens or tokens[0] in {"and", "or", "not", "forall", "exists", "when"}:
+                    continue
+                goal_predicates.add(tokens[0])
         action_effects = set()
 
         for action in list(self.predefined_actions.values()) + list(self.llm_generated_actions.values()):
@@ -992,10 +998,23 @@ class PDDLRepresentation:
         if domain_match:
             self.domain_name = domain_match.group(1)
 
-        # Extract and parse predicates section
-        pred_match = re.search(r'\(:predicates\s+(.*?)\s*\)', pddl_text, re.DOTALL)
-        if pred_match:
-            pred_section = pred_match.group(1)
+        # Extract and parse predicates section.
+        # Use a balanced-paren scan instead of a greedy/non-greedy regex because
+        # the (:predicates ...) block contains nested parens (one per predicate).
+        pred_start = pddl_text.find('(:predicates')
+        if pred_start != -1:
+            depth = 0
+            pred_end = pred_start
+            for i, ch in enumerate(pddl_text[pred_start:], pred_start):
+                if ch == '(':
+                    depth += 1
+                elif ch == ')':
+                    depth -= 1
+                    if depth == 0:
+                        pred_end = i
+                        break
+            # pred_section is the content between (:predicates and the closing )
+            pred_section = pddl_text[pred_start + len('(:predicates'):pred_end]
             self._parse_predicates_from_text(pred_section)
 
         # Extract and parse actions
@@ -1017,8 +1036,25 @@ class PDDLRepresentation:
         Args:
             pred_section: Content of (:predicates ...) section
         """
-        # Find all predicate definitions (handle nested parens)
-        pred_lines = re.findall(r'\(([^)]+(?:\([^)]*\))?[^)]*)\)', pred_section)
+        # Find all top-level predicate definitions by scanning for balanced parens.
+        pred_lines = []
+        i = 0
+        while i < len(pred_section):
+            if pred_section[i] == '(':
+                depth = 0
+                start = i
+                while i < len(pred_section):
+                    if pred_section[i] == '(':
+                        depth += 1
+                    elif pred_section[i] == ')':
+                        depth -= 1
+                        if depth == 0:
+                            pred_lines.append(pred_section[start + 1:i])  # content without outer parens
+                            i += 1
+                            break
+                    i += 1
+            else:
+                i += 1
 
         new_predicates = {}
         for pred_line in pred_lines:

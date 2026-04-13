@@ -62,10 +62,8 @@ from src.planning.pddl_solver import SolverResult
 from src.primitives.skill_decomposer import SkillDecomposer
 from src.primitives.primitive_executor import PrimitiveExecutor, PrimitiveExecutionResult
 from src.primitives.skill_plan_types import SkillPlan
-from src.kinematics.xarm_curobo_interface import CuRoboMotionPlanner
 from src.utils.genai_logging import configure_genai_logging
 from src.camera.realsense_camera import RealSenseCamera
-from src.kinematics.xarm_curobo_interface import CuRoboMotionPlanner
 # Import orchestrator config
 import sys
 config_path = Path(__file__).parent.parent / "config"
@@ -115,7 +113,7 @@ class TAMPConfig:
 
     # Execution settings
     dry_run_default: bool = False  # Default dry-run mode for execution
-    primitives_interface: Optional[Any] = CuRoboMotionPlanner(robot_ip="192.168.1.224")  # Actual robot primitives interface
+    primitives_interface: Optional[Any] = None  # Robot primitives interface (set at runtime)
 
     # Callbacks
     on_state_change: Optional[Callable[[TAMPState], None]] = None
@@ -385,21 +383,15 @@ class TaskAndMotionPlanner:
 
             # Treat empty plan as a failure for refinement purposes
             if use_refinement and self.config.auto_refine_on_failure:
-                print(f"\n🔧 Triggering domain refinement for empty plan...")
-                # Create synthetic error message for refinement
+                print(f"\n🔧 Triggering targeted representation repair for empty plan...")
                 error_msg = "Planning returned empty plan (0 actions). Goals may not be properly set or are already satisfied."
-
-                # Attempt refinement with both domain and problem context
-                await self.orchestrator.maintainer.refine_domain_from_error(
+                pddl_dir = self.orchestrator.config.state_dir / "pddl"
+                await self.orchestrator.refine_domain_from_failure(
                     error_message=error_msg,
-                    current_domain_pddl=self.orchestrator.pddl.get_domain_text(),
-                    current_problem_pddl=self.orchestrator.pddl.generate_problem_pddl()
-                )
-
-                # Update ObjectTracker with refined predicates and actions
-                print(f"  • Updating ObjectTracker with refined predicates/actions...")
-                await self.orchestrator.maintainer.update_object_tracker_from_domain(
-                    self.orchestrator.tracker
+                    pddl_files={
+                        "domain_path": str(pddl_dir / f"{self.orchestrator.pddl.domain_name}_domain.pddl"),
+                        "problem_path": str(pddl_dir / f"{self.orchestrator.pddl.domain_name}_problem.pddl"),
+                    },
                 )
 
                 # Retry planning once after refinement
@@ -547,6 +539,7 @@ class TaskAndMotionPlanner:
         result.refinement_attempts = self.orchestrator.refinement_attempts
 
         # Phase 2: Skill Decomposition
+        # Split plan into segments at 'observe' actions for phased execution
         self._set_state(TAMPState.DECOMPOSING)
         decomp_start = time.time()
 
@@ -554,14 +547,40 @@ class TaskAndMotionPlanner:
         print("SKILL DECOMPOSITION")
         print(f"{'='*70}")
 
+        # Split the plan at observe actions
+        plan_segments = []
+        current_segment = []
+        for action_str in solver_result.plan:
+            parts = action_str.strip("()").split()
+            action_name = parts[0]
+
+            if action_name.lower() == "observe":
+                # Found an observe action - complete current segment
+                if current_segment:
+                    plan_segments.append(current_segment)
+                    current_segment = []
+                # Add observe as its own marker segment
+                plan_segments.append(["observe"])
+            else:
+                current_segment.append(action_str)
+
+        # Add final segment if any
+        if current_segment:
+            plan_segments.append(current_segment)
+
+        print(f"  • Plan split into {len(plan_segments)} segment(s) at observe boundaries")
+
+        # Decompose only the first segment (before first observe)
         skill_plans = {}
-        for i, action_str in enumerate(solver_result.plan, 1):
+        first_segment = plan_segments[0] if plan_segments else []
+
+        for i, action_str in enumerate(first_segment, 1):
             # Parse action string: "action_name obj1 obj2 ..."
             parts = action_str.strip("()").split()
             action_name = parts[0]
             action_params = {f"param{j}": param for j, param in enumerate(parts[1:], 1)}
 
-            print(f"\n[{i}/{len(solver_result.plan)}] {action_str}")
+            print(f"\n[{i}/{len(first_segment)}] {action_str}")
 
             skill_plan = await self.decompose_action(
                 action=action_name,
@@ -580,7 +599,7 @@ class TaskAndMotionPlanner:
 
         result.skill_plans = skill_plans
         result.decomposition_time = time.time() - decomp_start
-        print(f"\n✓ Decomposed {len(skill_plans)} actions")
+        print(f"\n✓ Decomposed {len(skill_plans)} actions in first segment")
 
         # Persist decomposed skill plans to disk for inspection/debugging
         try:
@@ -611,7 +630,7 @@ class TaskAndMotionPlanner:
         except Exception:
             pass
 
-        # Phase 3: Execution
+        # Phase 3: Segmented Execution with Observation Updates
         self._set_state(TAMPState.EXECUTING)
         exec_start = time.time()
 
@@ -620,26 +639,110 @@ class TaskAndMotionPlanner:
         print(f"{'='*70}")
 
         execution_results = []
-        for i, (action_str, skill_plan) in enumerate(skill_plans.items(), 1):
-            print(f"\n[{i}/{len(skill_plans)}] {action_str}")
+        all_skill_plans = {}
 
-            exec_result = await self.execute_skill_plan(
-                action_name=action_str,
-                skill_plan=skill_plan,
-                dry_run=dry_run
-            )
+        # Process each segment
+        for segment_idx, segment in enumerate(plan_segments):
+            # Check if this is an observe marker
+            if segment == ["observe"]:
+                print(f"\n{'='*70}")
+                print(f"OBSERVE ACTION - TRIGGERING STATE UPDATE")
+                print(f"{'='*70}")
 
-            execution_results.append(exec_result)
+                # Trigger object tracking update
+                print("  • Moving to home position for observation...")
+                if self.config.primitives_interface and not dry_run:
+                    try:
+                        # Retract to home position
+                        retract_method = getattr(self.config.primitives_interface, "retract_gripper", None)
+                        if callable(retract_method):
+                            retract_method()
+                            print("    ✓ Moved to home position")
+                    except Exception as e:
+                        print(f"    ⚠ Could not retract to home: {e}")
 
-            if not exec_result.executed and not dry_run:
-                result.failed_at_stage = "execution"
-                result.error_message = f"Failed to execute action: {action_str}"
-                result.execution_results = execution_results
-                result.execution_time = time.time() - exec_start
-                self._set_state(TAMPState.FAILED)
-                return result
+                print("  • Running object detection to update world state...")
+                # Run a perception update
+                perception_start = asyncio.get_event_loop().time()
+                await self.orchestrator.start_detection()
+                await asyncio.sleep(5.0)  # Allow time for multiple detection cycles
+                await self.orchestrator.pause_detection()
+                perception_time = asyncio.get_event_loop().time() - perception_start
+
+                print(f"    ✓ Observation complete ({perception_time:.1f}s)")
+
+                # Get updated status
+                status = await self.orchestrator.get_status()
+                print(f"    • Detected objects: {status.get('registry', {}).get('num_objects', 0)}")
+
+                # Decompose remaining segments with updated world state
+                if segment_idx + 1 < len(plan_segments):
+                    remaining_segments = plan_segments[segment_idx + 1:]
+                    print(f"\n  • Decomposing {sum(len(s) for s in remaining_segments if s != ['observe'])} remaining actions with updated state...")
+
+                    decomp_start_remaining = time.time()
+                    for remaining_segment in remaining_segments:
+                        if remaining_segment == ["observe"]:
+                            continue  # Skip subsequent observe markers for now
+
+                        for action_str in remaining_segment:
+                            parts = action_str.strip("()").split()
+                            action_name = parts[0]
+                            action_params = {f"param{j}": param for j, param in enumerate(parts[1:], 1)}
+
+                            print(f"    → Decomposing {action_str}")
+
+                            skill_plan = await self.decompose_action(
+                                action=action_name,
+                                parameters=action_params,
+                                temperature=decompose_temperature
+                            )
+
+                            if not skill_plan:
+                                result.failed_at_stage = "decomposition"
+                                result.error_message = f"Failed to decompose action after observe: {action_str}"
+                                result.decomposition_time += time.time() - decomp_start_remaining
+                                result.execution_time = time.time() - exec_start
+                                self._set_state(TAMPState.FAILED)
+                                return result
+
+                            skill_plans[action_str] = skill_plan
+
+                    result.decomposition_time += time.time() - decomp_start_remaining
+                    print(f"    ✓ Decomposed remaining actions")
+
+                continue  # Move to next segment
+
+            # Execute current segment's actions
+            if segment_idx == 0:
+                segment_skill_plans = skill_plans
+            else:
+                # For segments after observe, we've already decomposed them
+                segment_skill_plans = {action: skill_plans[action] for action in segment if action in skill_plans}
+
+            for i, (action_str, skill_plan) in enumerate(segment_skill_plans.items(), 1):
+                print(f"\n[Segment {segment_idx + 1}] [{i}/{len(segment_skill_plans)}] {action_str}")
+
+                exec_result = await self.execute_skill_plan(
+                    action_name=action_str,
+                    skill_plan=skill_plan,
+                    dry_run=dry_run
+                )
+
+                execution_results.append(exec_result)
+                all_skill_plans[action_str] = skill_plan
+
+                if not exec_result.executed and not dry_run:
+                    result.failed_at_stage = "execution"
+                    result.error_message = f"Failed to execute action: {action_str}"
+                    result.execution_results = execution_results
+                    result.execution_time = time.time() - exec_start
+                    result.skill_plans = all_skill_plans
+                    self._set_state(TAMPState.FAILED)
+                    return result
 
         result.execution_results = execution_results
+        result.skill_plans = all_skill_plans
         result.execution_time = time.time() - exec_start
 
         # Success!

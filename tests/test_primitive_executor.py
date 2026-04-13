@@ -2,8 +2,6 @@ import json
 from pathlib import Path
 
 import numpy as np
-import torch
-from curobo.types.state import JointState
 
 from src.primitives import PrimitiveExecutor
 from src.primitives.skill_plan_types import PrimitiveCall, SkillPlan
@@ -73,7 +71,7 @@ def test_prepare_plan_translates_pixel_targets(tmp_path):
     assert params["target_position"] == [1.0, 1.0, 1.05]
 
 
-def test_execute_plan_serializes_joint_state_results(tmp_path):
+def test_execute_plan_serializes_dict_results(tmp_path):
     snapshot = _build_snapshot(tmp_path)
     plan = SkillPlan(
         action_name="pick",
@@ -88,7 +86,7 @@ def test_execute_plan_serializes_joint_state_results(tmp_path):
     class FakePrimitives:
         def move_to_pose(self, target_position, **kwargs):
             del target_position, kwargs  # unused in fake planner
-            js = JointState.from_position(torch.zeros((1, 7)))
+            js = {"position": [0.0] * 7, "velocity": None}
             return True, js, 0.1
 
     executor = PrimitiveExecutor(primitives=FakePrimitives(), perception_pool_dir=snapshot["pool_dir"])

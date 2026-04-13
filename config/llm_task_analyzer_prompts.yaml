@@ -1,193 +1,161 @@
-# Optional default robot description injected into prompts (set to null to omit)
-robot_description: "The robot is a 7-DOF robot arm, with a two-finger rigid gripper as end effector. The end effector cannot grasp objects <1cm or >15cm. The robot has a Realsense RGBD camera mounted at the end effector."
+robot_description: "The robot is a 7-DOF robot arm with a two-finger rigid gripper and an end-effector RGB-D camera. It can manipulate tabletop objects, open reachable articulated objects, and perform standard pick/place style actions, but it cannot use dexterous in-hand manipulation."
 
-analysis_prompt: |
-  Your goal is to analyze a task space and formulate a symbolic world representation in
-  PDDL that a robotics system can use to execute the task.
+goal_prompt: |
+  You are the goal-layer planner for a robot task-and-motion planning system.
 
-  You are given:
+  Produce an abstract goal that captures user intent without overcommitting to
+  unnecessary symbolic structure. Prefer a small number of direct success
+  conditions and name only objects implied by the task.
 
-    Task description:
-    <<TASK>>
+  Task:
+  <<TASK>>
 
-    Robot description:
-    <<ROBOT_DESCRIPTION>>
+  Robot capabilities:
+  <<ROBOT_DESCRIPTION>>
 
-    Current observed objects:
-    <<OBJECTS_JSON>>
+  Observed objects:
+  <<OBJECTS_JSON>>
 
-    Current observed relationships:
-    <<RELATIONSHIPS_JSON>>
+  Observed relationships:
+  <<RELATIONSHIPS_JSON>>
 
-  Ground your answer in the provided scene: use `object_id` values from the observations
-  when listing goal_objects, and express goal_predicates as literals over those goal_objects
-  (no quantifiers or abstract variables).
-
-  You must respond with **valid JSON only**, following this schema:
-
+  Return valid JSON only:
   {
-    "relevant_predicates": [
-      "<predicate_signature_1>",
-      "<predicate_signature_2>",
-      "..."
-    ],
-    "relevant_actions": [
-      {
-        "name": "<action_name_1>",
-        "parameters": ["<param_var_1>", "<param_var_2>", "..."],
-        "precondition": "<pddl_precondition_formula>",
-        "effect": "<pddl_effect_formula>"
-      },
-      {
-        "name": "<action_name_2>",
-        "parameters": ["<param_var_1>", "..."],
-        "precondition": "<pddl_precondition_formula>",
-        "effect": "<pddl_effect_formula>"
-      }
-    ],
-    "goal_predicates": [
-      "<goal_literal_1>",
-      "<goal_literal_2>",
-      "..."
-    ],
-    "preconditions": ["(predicate obj)", "..."],
-    "initial_predicates": ["(current_predicate obj)", "..."],
-    "goal_objects": ["object_id1", "..."],
-    "global_predicates": ["global_predicate1", "..."],
+    "summary": "short intent summary",
+    "goal_literals": ["(predicate symbolic_object another_symbolic_object)", "..."],
+    "goal_objects": ["symbolic_object", "..."],
+    "success_checks": ["short human-readable check", "..."]
   }
 
-  Response guidelines:
+  Rules:
+  - Keep `goal_literals` minimal and sufficient.
+  - Use symbolic object references from the task; use observed object IDs only if the task is already clearly grounded.
+  - Avoid quantifiers unless they are clearly necessary.
+  - Do not invent robot-internal goals unless they matter for task success.
 
-  1. **Purpose and Philosophy.**
-    Your goal is to define predicates and actions that form valid execution chains.
-    - **Chain validation is critical**: Actions must connect - effects must match next action's preconditions
-    - Every action in a sequence must produce what the next action needs
-    - Ensure preconditions are achievable through initial state, other actions, or perception
+predicates_prompt: |
+  You are the predicate-layer planner for a robot task-and-motion planning system.
 
-  2. **Relevant predicates.**
-  - `relevant_predicates` should contain predicates needed to represent the task state and support action execution.
-  - **IMPORTANT**: Provide predicates with their parameters in PDDL format, e.g.:
-      - `(holding ?obj)` - unary predicate
-      - `(on ?item ?surface)` - binary predicate
-      - `(hand-empty)` - zero-parameter predicate
-      - `(is_cup ?obj)` - unary classification predicate
-  - Include:
-      - **Relational predicates** for spatial relationships (e.g. `(on ?x ?y)`, `(in ?x ?y)`)
-      - **State predicates** for robot/object state (e.g. `(holding ?obj)`, `(hand-empty)`)
-      - **Semantic / classification predicates** when needed for action preconditions
-        (e.g. `(is_container ?x)` if an action checks this condition)
-  - **CRITICAL**: The parameter count in predicate definitions MUST match how they're used in actions.
-      Example: If you define `(holding ?obj)`, then use `(holding ?x)` in actions, not `(holding)`.
+  Choose the smallest predicate inventory that can express the abstract goal and
+  support coherent action schemas. Do not include predicates that are purely nice
+  to have.
 
-  3. **Relevant actions (with action chaining validation).**
-    - `relevant_actions` is a list of actions the robot is in principle capable of,
-      given the robot description (e.g. `pick`, `place`, `move_to`, `open`, `close`,
-      `press_button`, `pour`, `plug_in`, etc.).
-    - For each action:
-      - `name` is a short PDDL-style action name (no spaces).
-      - `parameters` is a list of variables, each given as a string like `"?obj"` or `"?src"`.
-      - `precondition` is a single PDDL formula string using only predicates from `relevant_predicates`.
-      - `effect` is a single PDDL formula string  specifying the effects of the action
-        from `relevant_predicates`.
-    - **CRITICAL: ACTION CHAINING VALIDATION** - Actions must form valid executable sequences:
-      - **The effects produced by one action must EXACTLY match the preconditions required by subsequent actions**
-      - Example CORRECT chain:
-        * `pick` has effect `(holding ?obj)`
-        * `place` has precondition `(holding ?obj)`
-        * ✓ These chain correctly - pick produces what place needs
-      - Example BROKEN chain:
-        * `pick` has effect `(holding ?obj)`
-        * `place` has precondition `(grasped ?obj)`
-        * ✗ Broken chain - pick produces `holding` but place needs `grasped`
-      - **Verify ALL common action sequences in your domain**:
-        * pick → place: Does pick's effect satisfy place's precondition?
-        * open → access_interior: Does open enable the access action?
-        * pour → empty: Do the predicates chain correctly?
-    - **ACHIEVABILITY CHECK**: For every predicate in an action's precondition, verify:
-      - Either it can be true in the initial state, OR
-      - Another action can make it true through its effects, OR
-      - It's a classification predicate that will be provided by perception
-      - If NONE of these are true, the action is UNREACHABLE and should be revised
-    - **CRITICAL ARITY RULE**: Every predicate used in preconditions and effects MUST use
-      the EXACT same number of parameters as defined in `relevant_predicates`. For example:
-      - If you define `(holding ?obj)` in predicates (1 parameter)
-      - Then you MUST use `(holding ?x)` in actions (1 parameter)
-      - NEVER use `(holding)` (0 parameters) or `(holding ?x ?y)` (2 parameters)
-    - If you introduce a predicate in any action's precondition or effect that is not yet
-      in `relevant_predicates`, you **must** add its full signature to
-      `relevant_predicates`.
+  Task:
+  <<TASK>>
 
-  4. **Goal predicates.**
-    - `goal_predicates` should describe the intended task outcome as literal facts about
-      the `goal_objects` (use their observed object_ids), not quantified/abstract
-      conditions. Examples:
-        - `(inside bottle_1 bag_2)`
-        - `(on cup_3 table_1)`
-    - Avoid quantifiers and abstract placeholders; write direct literals over the goal_objects list.
-    - Use only predicates that appear in `relevant_predicates`.
+  Robot capabilities:
+  <<ROBOT_DESCRIPTION>>
 
-  5. **Global and initial predicates.**
-    - `global_predicates` describe robot/environment state that should be TRUE before task execution (e.g., `hand_is_empty`, `arm_at_home`, `gripper_open`, `robot_ready`).
-    - Do NOT include object-related facts in `global_predicates`; place those in `initial_predicates`.
-    - Global predicates typically have no parameters (or take the robot as the sole parameter) and should be returned without parentheses.
+  Abstract goal:
+  <<ABSTRACT_GOAL_JSON>>
 
-  6. **PDDL formatting rules (apply everywhere).**
-    - Parameters MUST use variables with ? prefix (e.g., `?obj`, `?location`, `?machine`) and keep everything untyped (no `- object` or other type annotations).
-    - Preconditions and effects can ONLY use variables and predicate names; NEVER include quoted strings or constants.
-    - Represent components as predicates, not strings:
-      - WRONG: `(is-empty ?machine "water_reservoir")`
-      - RIGHT: `(water-reservoir-empty ?machine)` or `(reservoir-has-water ?machine)`
-    - Use hyphens for multi-word predicates (e.g., `has-water`, `water-reservoir-empty`).
+  Observed objects:
+  <<OBJECTS_JSON>>
 
-  7. **Example: Minimal predicate set with action chaining.**
-    CORRECT example showing minimal predicates and proper action chains:
+  Observed relationships:
+  <<RELATIONSHIPS_JSON>>
 
-    {
-      "relevant_predicates": [
-        "(holding ?obj)",
-        "(hand-empty)",
-        "(on ?obj ?surface)"
-      ],
-      "global_predicates": [
-        "hand-empty"
-      ],
-      "relevant_actions": [
-        {
-          "name": "pick",
-          "parameters": ["?obj"],
-          "precondition": "(and (hand-empty) (on ?obj ?surface))",
-          "effect": "(and (holding ?obj) (not (hand-empty)) (not (on ?obj ?surface)))"
-        },
-        {
-          "name": "place",
-          "parameters": ["?obj", "?surface"],
-          "precondition": "(holding ?obj)",
-          "effect": "(and (on ?obj ?surface) (hand-empty) (not (holding ?obj)))"
-        }
-      ]
-    }
+  Return valid JSON only:
+  {
+    "predicates": ["(predicate ?x ?y)", "(zero-arity-predicate)", "..."],
+    "selection_rationale": ["why a predicate family is needed", "..."],
+    "omitted_predicates": ["predicate families deliberately excluded", "..."]
+  }
 
-    Notice:
-    - **CHAINING VERIFIED**: pick effect `(holding ?obj)` → place precondition `(holding ?obj)` ✓
-      * pick produces EXACTLY what place needs to execute
-      * No missing predicates between actions
-    - **ARITY CONSISTENT**: Each predicate has same parameter count throughout
-    - **ACHIEVABLE PRECONDITIONS**:
-      * pick needs `hand-empty` → provided by global_predicates (initial state)
-      * pick needs `on` → provided by perception
-      * place needs `holding` → provided by pick's effects
-    - **GLOBAL STATE**: `hand-empty` in global_predicates ensures robot starts ready
+  Rules:
+  - Every predicate must be necessary for expressing the goal, action preconditions, action effects, or essential world-state tracking.
+  - Keep arity consistent and explicit in the signature.
+  - Prefer task-general predicates such as containment, support, openness, holding, reachability, occupancy, and intactness when appropriate.
+  - Do not include execution-specific placeholders that the planner will never use.
 
-  8. **VERIFICATION (complete BEFORE responding).**
-    a) **Arity**: Every predicate usage must match parameter count in definition
-    b) **ACTION CHAIN VALIDATION** (CRITICAL):
-       - For EACH pair of actions that might execute in sequence:
-         * List the effects added by the first action
-         * List the preconditions needed by the second action
-         * VERIFY the effects can satisfy the preconditions
-       - Common chains to validate: pick→place, open→access, pour→empty, grasp→move
-       - If effects don't match preconditions, the actions CANNOT chain - FIX THIS
-    c) **Achievability**: Each action's preconditions must be reachable via:
-       - Initial state (from global_predicates or perception), OR
-       - Another action's effects
-    d) **Goals**: Each goal must be achievable by at least one action's effects
+actions_prompt: |
+  You are the action-layer planner for a robot task-and-motion planning system.
+
+  Build action schemas that can move the predicate inventory toward the abstract
+  goal. Favor a small, coherent action library over a long speculative one.
+
+  Task:
+  <<TASK>>
+
+  Robot capabilities:
+  <<ROBOT_DESCRIPTION>>
+
+  Abstract goal:
+  <<ABSTRACT_GOAL_JSON>>
+
+  Predicate inventory:
+  <<PREDICATE_INVENTORY_JSON>>
+
+  Observed objects:
+  <<OBJECTS_JSON>>
+
+  Observed relationships:
+  <<RELATIONSHIPS_JSON>>
+
+  Return valid JSON only:
+  {
+    "actions": [
+      {
+        "name": "action_name",
+        "parameters": ["?obj", "?support"],
+        "precondition": "(and ...)",
+        "effect": "(and ...)",
+        "description": "what the action does"
+      }
+    ],
+    "planning_notes": ["coverage note", "..."]
+  }
+
+  Rules:
+  - Use only predicates from the predicate inventory.
+  - Ensure action effects can satisfy downstream action preconditions.
+  - Ensure each goal-relevant predicate can be achieved or preserved by some action.
+  - Keep schemas general-purpose and reusable. Avoid overfitting to one exact scene.
+  - Do not introduce actions that require capabilities unsupported by the robot description.
+
+grounding_prompt: |
+  You are the grounding-layer planner for a robot task-and-motion planning system.
+
+  Bind symbolic task references to the currently observed world. Ground only what
+  is supported by the observations; report unresolved references explicitly.
+
+  Task:
+  <<TASK>>
+
+  Robot capabilities:
+  <<ROBOT_DESCRIPTION>>
+
+  Abstract goal:
+  <<ABSTRACT_GOAL_JSON>>
+
+  Predicate inventory:
+  <<PREDICATE_INVENTORY_JSON>>
+
+  Action schemas:
+  <<ACTION_SCHEMAS_JSON>>
+
+  Observed objects:
+  <<OBJECTS_JSON>>
+
+  Observed relationships:
+  <<RELATIONSHIPS_JSON>>
+
+  Observed predicates:
+  <<OBSERVED_PREDICATES_JSON>>
+
+  Return valid JSON only:
+  {
+    "object_bindings": {
+      "symbolic_object": ["detected_object_id"]
+    },
+    "grounded_goal_literals": ["(predicate detected_object_id other_detected_object_id)", "..."],
+    "grounded_predicates": ["predicate object_a object_b", "..."],
+    "available_skills": ["pick", "place", "open", "..."],
+    "missing_references": ["symbolic_object", "..."]
+  }
+
+  Rules:
+  - Use detected `object_id` values for bindings.
+  - Leave unresolved references in `missing_references` instead of hallucinating bindings.
+  - Ground goals conservatively: only rewrite a symbolic reference when there is a defensible match.
+  - `available_skills` should reflect the executable intent of the action library, not low-level motor details.

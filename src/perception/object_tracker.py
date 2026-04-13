@@ -75,7 +75,8 @@ class ObjectTracker:
         logger: Optional[logging.Logger] = None,
         task_context: Optional[str] = None,
         available_actions: Optional[List[Dict[str, Any]]] = None,
-        robot: Optional[Any] = None
+        robot: Optional[Any] = None,
+        llm_client: Optional[Any] = None,  # src.llm_interface.LLMClient
     ):
         """
         Initialize object tracker.
@@ -127,9 +128,14 @@ class ObjectTracker:
         else:
             self.model_name = model_name
 
-        # Initialize GenAI SDK
-        self.client = genai.Client(api_key=api_key)
-        self.logger.info("ObjectTracker initialized with GenAI SDK")
+        # Initialize LLM client (abstract or genai fallback)
+        self._llm_client = llm_client
+        if llm_client is None:
+            self.client = genai.Client(api_key=api_key)
+            self.logger.info("ObjectTracker initialized with GenAI SDK")
+        else:
+            self.client = None
+            self.logger.info("ObjectTracker initialized with injected LLMClient: %s", type(llm_client).__name__)
 
         self.default_temperature = default_temperature
         self.thinking_budget = thinking_budget
@@ -654,7 +660,14 @@ class ObjectTracker:
                 await callback(object_name, bounding_box)
 
         except Exception as e:
-            self.logger.exception("Streaming detection failed: %s", e)
+            self.logger.error("=" * 60)
+            self.logger.error("OBJECT DETECTION FAILED")
+            self.logger.error("=" * 60)
+            self.logger.error("Error type: %s", type(e).__name__)
+            self.logger.error("Error message: %s", str(e))
+            self.logger.exception("Full traceback:")
+            self.logger.error("=" * 60)
+            raise
 
     async def _analyze_single_object(
         self,
@@ -935,7 +948,11 @@ class ObjectTracker:
             return detected_obj
 
         except Exception as e:
-            self.logger.exception("Failed to analyze %s: %s", object_name, e)
+            self.logger.error("Failed to analyze object '%s'", object_name)
+            self.logger.error("  Error type: %s", type(e).__name__)
+            self.logger.error("  Error message: %s", str(e))
+            if self.logger.isEnabledFor(logging.DEBUG):
+                self.logger.exception("  Full traceback:")
             return None
 
     def get_object(self, object_id: str) -> Optional[DetectedObject]:
@@ -1244,30 +1261,6 @@ class ObjectTracker:
 
         return [prior_observations[i] for i in sorted(selected_indices)]
 
-    def _format_detection_prompt(
-        self,
-        existing_objects: List[DetectedObject],
-        prior_observations: Optional[List[Dict[str, Any]]] = None
-    ) -> str:
-        """
-        Build a detection prompt that includes previously detected objects to encourage
-        re-identification instead of minting new IDs.
-        """
-        existing_section, prior_section = self._build_detection_context_sections(
-            existing_objects, prior_observations
-        )
-
-        streaming = self.prompts['detection']['streaming']
-        if isinstance(streaming, dict):
-            template = streaming.get('current') or streaming.get('prior') or ""
-        else:
-            template = streaming
-
-        return template.format(
-            existing_objects_section=existing_section,
-            prior_images_section=prior_section
-        )
-
     def _format_detection_prompt_sections(
         self,
         existing_objects: List[DetectedObject],
@@ -1464,7 +1457,7 @@ class ObjectTracker:
         Generate content with async streaming support using client.aio.
         Yields text chunks as they arrive.
         """
-        # Check if we can use cached encoded image
+        # Encode image (reuse cache when possible)
         if (self._encoded_image_cache is not None and
             self._cache_image_id == id(image)):
             img_bytes = self._encoded_image_cache
@@ -1473,6 +1466,30 @@ class ObjectTracker:
             image.save(img_byte_arr, format='PNG')
             img_bytes = img_byte_arr.getvalue()
 
+        temp = temperature if temperature is not None else self.default_temperature
+
+        # --- Abstract LLM client path ---
+        if self._llm_client is not None:
+            from src.llm_interface.base import GenerateConfig, ImagePart
+            llm_parts = [ImagePart(data=img_bytes)]
+            if additional_image_parts:
+                # additional_image_parts are genai types — encode to bytes if needed
+                for ap in additional_image_parts:
+                    raw = getattr(ap, "inline_data", None)
+                    if raw is not None:
+                        llm_parts.append(ImagePart(data=raw.data, mime_type=raw.mime_type))
+            llm_parts.append(prompt)
+            cfg = GenerateConfig(
+                temperature=temp,
+                response_mime_type="application/json" if response_schema else None,
+                response_json_schema=response_schema,
+                thinking_budget=self.thinking_budget,
+            )
+            async for chunk in self._llm_client.generate_stream(llm_parts, config=cfg):
+                yield chunk
+            return
+
+        # --- genai client path (original) ---
         if contents is None and content_parts is None:
             content_parts = [types.Part.from_bytes(data=img_bytes, mime_type='image/png')]
             if additional_image_parts:
@@ -1480,7 +1497,6 @@ class ObjectTracker:
             content_parts.append(prompt)
         payload = contents if contents is not None else content_parts
 
-        temp = temperature if temperature is not None else self.default_temperature
         config_kwargs: Dict[str, Any] = {
             "temperature": temp,
             "thinking_config": types.ThinkingConfig(
@@ -1493,7 +1509,6 @@ class ObjectTracker:
 
         config = types.GenerateContentConfig(**config_kwargs)
 
-        # Use async streaming via client.aio
         stream = await self.client.aio.models.generate_content_stream(
             model=self.model_name,
             contents=payload,
@@ -1504,27 +1519,40 @@ class ObjectTracker:
                 yield chunk.text
 
     def _parse_json_response(self, response_text: str) -> Dict[str, Any]:
-        """Parse JSON response from LLM."""
+        """Parse JSON response from LLM, tolerating thinking tokens and markdown fences."""
         import json
+        import re
 
+        text = response_text
+
+        # Strip <think>...</think> blocks (Qwen3 thinking models)
+        text = re.sub(r"<think>[\s\S]*?</think>", "", text).strip()
+
+        # Try bare parse
         try:
-            # Handle markdown code blocks
-            if "```json" in response_text:
-                start = response_text.find("```json") + 7
-                end = response_text.find("```", start)
-                response_text = response_text[start:end]
-            elif "```" in response_text:
-                start = response_text.find("```") + 3
-                end = response_text.find("```", start)
-                response_text = response_text[start:end]
-            return json.loads(response_text.strip())
-        except json.JSONDecodeError as e:
-            import traceback
-            traceback.print_exc()
-            print(response_text)
-            self.logger.warning("Failed to parse JSON: %s", e)
-            self.logger.debug("Response snippet: %s", response_text[:500])
-            return {}
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # Extract from ```json ... ``` or ``` ... ``` fences
+        fenced = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+        if fenced:
+            try:
+                return json.loads(fenced.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+
+        # Find first { } or [ ] block
+        for pattern in (r"\{[\s\S]*\}", r"\[[\s\S]*\]"):
+            m = re.search(pattern, text)
+            if m:
+                try:
+                    return json.loads(m.group(0))
+                except json.JSONDecodeError:
+                    pass
+
+        self.logger.warning("Failed to parse JSON from response: %s", text[:200])
+        return {}
 
     async def aclose(self):
         """Close async client resources."""
@@ -1542,6 +1570,90 @@ class TrackingStats:
     last_detection_time: float = 0.0
     cache_hit_rate: float = 0.0
     is_running: bool = False
+
+
+_DEBUG_PALETTE = [
+    (255,  80,  80, 200),
+    ( 80, 120, 255, 200),
+    ( 80, 220,  80, 200),
+    (255, 200,  50, 200),
+    (220,  80, 220, 200),
+    ( 80, 220, 220, 200),
+    (255, 160,  50, 200),
+]
+
+
+def save_debug_frame(
+    png_bytes: bytes,
+    objects: List[Any],
+    frame_index: int,
+    save_dir: Path,
+    lock: threading.Lock,
+) -> None:
+    """Render bounding boxes + labels onto a frame PNG and write to save_dir.
+
+    Intended to be called from a daemon thread. Updates a ``latest.png`` symlink
+    atomically so external viewers always see the most recent frame.
+    """
+    try:
+        save_dir.mkdir(parents=True, exist_ok=True)
+        img = Image.open(io.BytesIO(png_bytes)).convert("RGB")
+        w, h = img.size
+        from PIL import ImageDraw, ImageFont
+        draw = ImageDraw.Draw(img, "RGBA")
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)
+        except Exception:
+            font = ImageFont.load_default()
+
+        for i, obj in enumerate(objects):
+            color = _DEBUG_PALETTE[i % len(_DEBUG_PALETTE)]
+            oid = obj.object_id
+            bbox = obj.bounding_box_2d
+            pos2d = obj.position_2d
+
+            if bbox and len(bbox) == 4:
+                y1n, x1n, y2n, x2n = bbox
+                x1 = int(x1n / 1000 * w)
+                y1 = int(y1n / 1000 * h)
+                x2 = int(x2n / 1000 * w)
+                y2 = int(y2n / 1000 * h)
+                draw.rectangle([x1, y1, x2, y2], fill=(*color[:3], 50), outline=color, width=2)
+                label_y = max(0, y1 - 18)
+                draw.rectangle([x1, label_y, x1 + len(oid) * 8 + 6, label_y + 16],
+                               fill=(*color[:3], 200))
+                draw.text((x1 + 3, label_y + 1), oid, fill=(255, 255, 255, 255), font=font)
+            elif pos2d and len(pos2d) >= 2:
+                cx = int(pos2d[1] / 1000 * w)
+                cy = int(pos2d[0] / 1000 * h)
+                r = 6
+                draw.ellipse([cx - r, cy - r, cx + r, cy + r],
+                             fill=(*color[:3], 200), outline=(255, 255, 255, 255), width=2)
+                draw.text((cx + r + 2, cy - 8), oid, fill=(*color[:3], 255), font=font)
+
+            for ip_name, ip in (obj.interaction_points or {}).items():
+                pos = ip.position_2d if hasattr(ip, "position_2d") else None
+                if pos and len(pos) >= 2:
+                    cx = int(pos[1] / 1000 * w)
+                    cy = int(pos[0] / 1000 * h)
+                    arm = 4
+                    draw.line([cx - arm, cy, cx + arm, cy], fill=(255, 255, 255, 230), width=2)
+                    draw.line([cx, cy - arm, cx, cy + arm], fill=(255, 255, 255, 230), width=2)
+                    draw.text((cx + 5, cy - 6), ip_name, fill=(220, 220, 220, 200), font=font)
+
+        stamp = f"frame {frame_index:04d}  |  objects: {len(objects)}"
+        draw.rectangle([0, h - 20, w, h], fill=(0, 0, 0, 160))
+        draw.text((4, h - 17), stamp, fill=(200, 200, 200, 255), font=font)
+
+        out_path = save_dir / f"frame_{frame_index:04d}.png"
+        img.save(out_path)
+        latest = save_dir / "latest.png"
+        with lock:
+            if latest.is_symlink() or latest.exists():
+                latest.unlink()
+            latest.symlink_to(out_path.name)
+    except Exception:
+        logging.getLogger(__name__).debug("Debug frame save failed", exc_info=True)
 
 
 class ContinuousObjectTracker(ObjectTracker):
@@ -1563,7 +1675,9 @@ class ContinuousObjectTracker(ObjectTracker):
         update_interval: float = 1.0,
         on_detection_complete: Optional[Callable[[int], None]] = None,
         logger: Optional[logging.Logger] = None,
-        robot: Optional[Any] = None
+        robot: Optional[Any] = None,
+        llm_client: Optional[Any] = None,
+        debug_save_dir: Optional[Union[str, Path]] = None,
     ):
         super().__init__(
             api_key=api_key,
@@ -1573,7 +1687,8 @@ class ContinuousObjectTracker(ObjectTracker):
             enable_affordance_caching=enable_affordance_caching,
             fast_mode=fast_mode,
             logger=logger,
-            robot=robot
+            robot=robot,
+            llm_client=llm_client,
         )
         self.update_interval = update_interval
         self.on_detection_complete = on_detection_complete
@@ -1590,10 +1705,22 @@ class ContinuousObjectTracker(ObjectTracker):
         self.stats = TrackingStats()
         self._last_detection_count: int = 0
 
+        # Debug image streaming
+        self._debug_save_dir: Optional[Path] = Path(debug_save_dir) if debug_save_dir else None
+        self._debug_frame_index: int = 0
+        self._debug_executor = threading.Thread(target=lambda: None, daemon=True)  # placeholder
+        self._debug_lock = threading.Lock()
+
     @property
     def should_detect(self) -> bool:
         """Return whether detection should run for the current frame."""
         return True
+
+    def _save_debug_frame(self, png_bytes: bytes, objects: List[Any], frame_index: int) -> None:
+        """Render bounding boxes + labels onto the frame and write to debug_save_dir (background thread)."""
+        if self._debug_save_dir is None:
+            return
+        save_debug_frame(png_bytes, objects, frame_index, self._debug_save_dir, self._debug_lock)
 
     def set_frame_provider(
         self,
@@ -1703,8 +1830,30 @@ class ContinuousObjectTracker(ObjectTracker):
                     else:
                         self.on_detection_complete(len(detected_objects))
 
+                # Stream annotated debug frame in background if enabled
+                if self._debug_save_dir is not None and self._last_detection_png is not None:
+                    frame_idx = self._debug_frame_index
+                    self._debug_frame_index += 1
+                    png_snapshot = bytes(self._last_detection_png)
+                    objects_snapshot = list(detected_objects)
+                    t = threading.Thread(
+                        target=self._save_debug_frame,
+                        args=(png_snapshot, objects_snapshot, frame_idx),
+                        daemon=True,
+                    )
+                    t.start()
+
             except Exception as e:
-                self.logger.exception("Tracking loop error: %s", e)
+                self.logger.error("=" * 60)
+                self.logger.error("CONTINUOUS TRACKING ERROR")
+                self.logger.error("=" * 60)
+                self.logger.error("Error type: %s", type(e).__name__)
+                self.logger.error("Error message: %s", str(e))
+                self.logger.error("Frame: %d", self.stats.total_frames)
+                self.logger.exception("Full traceback:")
+                self.logger.error("=" * 60)
+                # Continue tracking despite error
+                await asyncio.sleep(self.update_interval)
 
             elapsed = time.time() - loop_start
             if elapsed < self.update_interval:

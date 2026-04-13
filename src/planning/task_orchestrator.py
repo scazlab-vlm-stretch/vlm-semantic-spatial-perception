@@ -30,7 +30,7 @@ from PIL import Image
 from .pddl_representation import PDDLRepresentation
 from .pddl_domain_maintainer import PDDLDomainMaintainer
 from .task_state_monitor import TaskStateMonitor, TaskState, TaskStateDecision
-from .llm_task_analyzer import TaskAnalysis
+from .utils.task_types import TaskAnalysis
 from .pddl_solver import PDDLSolver, SolverBackend, SearchAlgorithm, SolverResult
 from ..perception import ContinuousObjectTracker
 from ..perception.object_registry import DetectedObject
@@ -125,6 +125,9 @@ class TaskOrchestrator:
         self.tracker: Optional[ContinuousObjectTracker] = None
         self.solver: Optional[PDDLSolver] = None
 
+        # Layered domain generator (optional gated/guardrailed pipeline)
+        self._layered_generator: Optional[Any] = None
+
         # Task state
         self.current_task: Optional[str] = None
         self.task_analysis: Optional[TaskAnalysis] = None
@@ -170,7 +173,7 @@ class TaskOrchestrator:
         self.logger.info("Initializing Task Orchestrator...")
 
         # Initialize camera if not provided
-        if self._camera is None:
+        if self._camera is None and not getattr(self.config, "use_sim_camera", False):
             self.logger.info(
                 "  • Initializing RealSense camera (%sx%s @ %s FPS)...",
                 self.config.camera_width,
@@ -186,8 +189,10 @@ class TaskOrchestrator:
                 logger=self.logger.getChild("RealSenseCamera"),
             )
             self.logger.info("    ✓ Camera initialized")
-        else:
+        elif self._camera is not None:
             self.logger.info("  • Using provided camera")
+        else:
+            self.logger.info("  • Sim camera mode — frame provider will be injected")
 
         # Initialize PDDL representation if not provided
         if self.pddl is None:
@@ -198,11 +203,13 @@ class TaskOrchestrator:
             self.logger.info("  • PDDL representation created")
 
         # Initialize PDDL components
+        _llm_client = getattr(self.config, "llm_client", None)
         self.maintainer = PDDLDomainMaintainer(
             self.pddl,
             api_key=self.config.api_key,
             model_name=self.config.model_name,
             task_analyzer_prompts_path=self.config.task_analyzer_prompts_path,
+            llm_client=_llm_client,
         )
 
         self.monitor = TaskStateMonitor(
@@ -213,15 +220,35 @@ class TaskOrchestrator:
         )
         self.logger.info("  • PDDL domain maintainer and monitor initialized")
 
-        # Attach default robot provider if none supplied (xArm CuRobo interface)
+        # Initialize layered domain generator when enabled
+        if getattr(self.config, "use_layered_generation", False):
+            from .layered_domain_generator import LayeredDomainGenerator
+            dkb = None
+            dkb_dir = getattr(self.config, "dkb_dir", None)
+            if dkb_dir is not None:
+                try:
+                    from .domain_knowledge_base import DomainKnowledgeBase
+                    dkb = DomainKnowledgeBase(dkb_dir)
+                    dkb.load()
+                except Exception as e:
+                    self.logger.warning("  • DKB load failed (%s), proceeding without DKB", e)
+            self._layered_generator = LayeredDomainGenerator(
+                api_key=self.config.api_key,
+                model_name=self.config.model_name,
+                dkb=dkb,
+                llm_client=_llm_client,
+            )
+            self.logger.info("  • Layered domain generator initialized (use_layered_generation=True)")
+
+        # Attach default robot provider if none supplied — use PyBullet sim interface
         if getattr(self.config, "robot", None) is None:
             try:
-                from ..kinematics.xarm_curobo_interface import CuRoboMotionPlanner
-                self.config.robot = CuRoboMotionPlanner()
-                self.logger.info("  • Default robot provider attached: CuRoboMotionPlanner")
+                from ..kinematics.xarm_pybullet_interface import XArmPybulletInterface
+                self.config.robot = XArmPybulletInterface()
+                self.logger.info("  • Default robot provider attached: XArmPybulletInterface (sim)")
             except Exception as e:
-                self.logger.warning("  • No robot provider attached (default xArm initialization failed: %s)", e)
-
+                self.logger.warning("  • No robot provider attached (sim initialization failed: %s)", e)
+                
         # Initialize continuous tracker
         self.tracker = ContinuousObjectTracker(
             api_key=self.config.api_key,
@@ -230,7 +257,9 @@ class TaskOrchestrator:
             update_interval=self.config.update_interval,
             on_detection_complete=self._on_detection_callback,
             logger=self.logger.getChild("ObjectTracker"),
-            robot=self.config.robot
+            robot=self.config.robot,
+            llm_client=_llm_client,
+            debug_save_dir=getattr(self.config, "debug_frames_dir", None),
         )
 
         # Set frame provider
@@ -330,22 +359,47 @@ class TaskOrchestrator:
 
         # Analyze task and initialize domain
         self.logger.info("  • Analyzing task with LLM...")
-        self.task_analysis = await self.maintainer.initialize_from_task(
-            task_description,
-            environment_image=environment_image
-        )
+        if self._layered_generator is not None:
+            # Gated/guardrailed pipeline: L1→L5 with validation gates
+            self.logger.info("  • Using layered domain generator (L1–L5 pipeline)...")
+            # Use any objects already detected by the tracker
+            detected = self.get_detected_objects()
+            observed_objects = [
+                {
+                    "object_id": obj.object_id,
+                    "object_type": obj.object_type,
+                    "affordances": list(obj.affordances),
+                    "position_3d": obj.position_3d.tolist() if obj.position_3d is not None else None,
+                    "position_2d": obj.position_2d,
+                    "bounding_box_2d": obj.bounding_box_2d,
+                }
+                for obj in detected
+            ]
+            artifact = await self._layered_generator.generate_domain(
+                task_description,
+                observed_objects=observed_objects,
+                image=environment_image,
+            )
+            self.task_analysis = await self.maintainer.initialize_from_layered_artifact(artifact)
+        else:
+            # Legacy monolithic path
+            self.task_analysis = await self.maintainer.initialize_from_task(
+                task_description,
+                environment_image=environment_image
+            )
 
         self.logger.info("✓ Task analyzed!")
-        valid_goal_objects = [obj for obj in self.task_analysis.goal_objects if obj and obj != "None"]
+        valid_goal_objects = [obj for obj in self.task_analysis.goal_object_references() if obj and obj != "None"]
         self.logger.info("  • Goal objects: %s", ", ".join(valid_goal_objects) if valid_goal_objects else "None")
-        self.logger.info("  • Estimated steps: n/a")
-        self.logger.info("  • Complexity: n/a")
-        self.logger.info("  • Required predicates: %s", len(self.task_analysis.relevant_predicates))
+        self.logger.info("  • Goal summary: %s", self.task_analysis.abstract_goal.summary or "n/a")
+        self.logger.info("  • Required predicates: %s", len(self.task_analysis.predicate_signatures()))
+        self.logger.info("  • Action schemas: %s", len(self.task_analysis.action_context()))
 
         # Seed perception with predicates and task context
         if self.tracker:
-            self.logger.info("  • Configuring perception with %s predicates...", len(self.task_analysis.relevant_predicates))
-            self.tracker.set_pddl_predicates(self.task_analysis.relevant_predicates)
+            predicate_signatures = self.task_analysis.predicate_signatures()
+            self.logger.info("  • Configuring perception with %s predicates...", len(predicate_signatures))
+            self.tracker.set_pddl_predicates(predicate_signatures)
 
             self.logger.info("%s", "=" * 70)
             # Pass task context and available actions to tracker
@@ -356,12 +410,12 @@ class TaskOrchestrator:
                     "params": action.get("parameters", []),
                     "description": action.get("description", "")
                 }
-                for action in self.task_analysis.required_actions
+                for action in self.task_analysis.action_context()
             ]
             self.tracker.set_task_context(
                 task_description=task_description,
                 available_actions=available_actions,
-                goal_objects=self.task_analysis.goal_objects
+                goal_objects=self.task_analysis.goal_object_references()
             )
 
         print(f"\n{'='*70}\n")
@@ -472,6 +526,8 @@ class TaskOrchestrator:
 
     def _get_camera_frames(self):
         """Frame provider for continuous tracker."""
+        if self._camera is None:
+            return None, None, None, None
         try:
             color, depth = self._camera.get_aligned_frames()
             intrinsics = self._camera.get_camera_intrinsics()
@@ -769,6 +825,7 @@ class TaskOrchestrator:
                 json.dump(det_payload, f, indent=2)
 
             # Robot context (optional, via duck-typed get_robot_state)
+            robot_state_path = None
             if robot_state is not None:
                 robot_state_path = snapshot_dir / "robot_state.json"
                 with open(robot_state_path, "w") as f:
@@ -852,7 +909,7 @@ class TaskOrchestrator:
 
         # Update PDDL domain
         predicates = self.tracker.registry.get_all_predicates()
-        update_stats = await self.maintainer.update_from_observations(objects_dict, predicates=predicates)
+        update_stats = await self.maintainer.ground_representation(objects_dict, predicates=predicates)
 
         # Check task state
         decision = await self.monitor.determine_state()
@@ -1090,11 +1147,16 @@ class TaskOrchestrator:
             for obj in all_objects:
                 # Add object instance if not already present
                 if obj.object_id not in self.pddl.object_instances:
+                    obj_type = obj.object_type
+                    # Auto-register unknown types as children of 'object'
+                    if obj_type not in self.pddl.object_types:
+                        await self.pddl.add_object_type_async(obj_type, parent="object")
+                        self.logger.debug(f"      Auto-registered type '{obj_type}' (parent: object)")
                     await self.pddl.add_object_instance_async(
                         obj.object_id,
-                        obj.object_type
+                        obj_type
                     )
-                    self.logger.info(f"      Added: {obj.object_id} ({obj.object_type})")
+                    self.logger.info(f"      Added: {obj.object_id} ({obj_type})")
 
             # Add global predicates to initial state
             if self.maintainer:
@@ -1108,6 +1170,61 @@ class TaskOrchestrator:
                             self.logger.info(f"      Added global predicate: {pred_name}")
                         except ValueError as e:
                             self.logger.warning(f"      Failed to add global predicate '{pred_name}': {e}")
+
+                # Apply L5 initial state literals first (handles on, above, etc.)
+                # These use position_3d proximity from the scene at generation time.
+                added_initial: set = set()
+                l5 = getattr(self.maintainer, "_l5_artifact", None)
+                if l5 and l5.true_literals:
+                    for pred_name, args in l5.true_literals:
+                        if args and not all(a in self.pddl.object_instances for a in args):
+                            continue
+                        key = (pred_name, tuple(args))
+                        if key not in added_initial:
+                            try:
+                                await self.pddl.add_initial_literal_async(pred_name, args, negated=False)
+                                added_initial.add(key)
+                            except ValueError:
+                                pass
+
+                # Derive `clear` facts: an object is clear if nothing is `on` it.
+                # This handles blocksworld-style domains where `clear` is added by refinement.
+                domain_predicates = set(self.pddl.predicates.keys())
+                if "clear" in domain_predicates:
+                    occupied: set = set()
+                    for pred_name, args in l5.true_literals if (l5 and l5.true_literals) else []:
+                        if pred_name == "on" and len(args) == 2:
+                            occupied.add(args[1])  # surface has something on it
+                    for obj in all_objects:
+                        if obj.object_id not in occupied:
+                            key = ("clear", (obj.object_id,))
+                            if key not in added_initial:
+                                try:
+                                    await self.pddl.add_initial_literal_async("clear", [obj.object_id], negated=False)
+                                    added_initial.add(key)
+                                except ValueError:
+                                    pass
+
+                # Re-derive unary affordance predicates from live detected objects.
+                # This catches cases where L5 was built before perception ran (empty scene)
+                # or where domain refinement re-added predicates that L2-V5 had pruned.
+                # Try both bare name (e.g. `graspable`) and object-prefixed name
+                # (e.g. `object-graspable`) since the prompt encourages prefixed naming.
+                for obj in all_objects:
+                    for affordance in (obj.affordances or set()):
+                        base = affordance.replace(" ", "-").replace("_", "-")
+                        candidates = [base, f"object-{base}"]
+                        for pred_name in candidates:
+                            if pred_name in domain_predicates:
+                                key = (pred_name, (obj.object_id,))
+                                if key not in added_initial:
+                                    try:
+                                        await self.pddl.add_initial_literal_async(pred_name, [obj.object_id], negated=False)
+                                        added_initial.add(key)
+                                    except ValueError:
+                                        pass
+                if added_initial:
+                    self.logger.info(f"  • Added {len(added_initial)} initial literals from L5 + affordances")
 
         # Set goals if requested
         if set_goals:
@@ -1137,7 +1254,10 @@ class TaskOrchestrator:
         self.logger.info("Problem Summary:")
         self.logger.info("  • Objects: %s", len(problem_snapshot["object_instances"]))
         self.logger.info("  • Initial literals: %s", len(problem_snapshot["initial_literals"]))
-        self.logger.info("  • Goal literals: %s", len(problem_snapshot["goal_literals"]))
+        # goal_literals tracks structured Literal objects; goal_formulas tracks raw PDDL strings.
+        # Goals are added via add_goal_formula_async so count goal_formulas.
+        goal_count = len(problem_snapshot.get("goal_literals", [])) + len(self.pddl.goal_formulas)
+        self.logger.info("  • Goal literals: %s", goal_count)
 
         self.logger.info("%s", "=" * 70)
 
@@ -1301,62 +1421,65 @@ class TaskOrchestrator:
         print()
 
         try:
-            # Read the current domain and problem files for context if available
             domain_content = None
             problem_content = None
             if pddl_files and "domain_path" in pddl_files:
                 domain_path = Path(pddl_files["domain_path"])
                 if domain_path.exists():
                     domain_content = domain_path.read_text()
-
             if pddl_files and "problem_path" in pddl_files:
                 problem_path = Path(pddl_files["problem_path"])
                 if problem_path.exists():
-                    print("Problem file exists!")
                     problem_content = problem_path.read_text()
-                    print(problem_content)
-                    print("############################")
-                    print(domain_content)
-                else: 
-                    print("  ⚠ Problem file not found for refinement context")
-            else:
-                print("  ⚠ Problem file not found in pddl files for refinement context")
-            print(pddl_files)
-            # Use the maintainer to refine the domain
-            print("  • Requesting domain refinement from LLM...")
 
-            # Re-analyze the task with error context to get corrected domain
-            if self.maintainer:
-                # The maintainer will analyze the error and fix the domain
-                await self.maintainer.refine_domain_from_error(
-                    error_message=error_message,
-                    current_domain_pddl=domain_content,
-                    current_problem_pddl=problem_content
-                )
-
-                print("  ✓ Domain refinement complete")
-
-                # Update ObjectTracker with refined predicates and actions
-                print("  • Updating ObjectTracker with refined predicates/actions...")
-                await self.maintainer.update_object_tracker_from_domain(self.tracker)
-                print()
-
-                # Reset to ready for planning state to try again
-                self._set_state(OrchestratorState.READY_FOR_PLANNING)
-                domain_snapshot = await self.pddl.get_domain_snapshot()
-                self.tracker.set_task_context(
-                    task_description=self.current_task,
-                    available_actions=domain_snapshot.get("predefined_actions", []),
-                    goal_objects=self.task_analysis.goal_objects
-                )
-                return True
-            else:
+            if not self.maintainer:
                 print("  ⚠ No maintainer available for refinement")
                 return False
 
+            validation = await self.maintainer.get_domain_statistics()
+            layer = self.maintainer.classify_failure_layer(
+                error_message=error_message,
+                validation=validation.get("validation"),
+            )
+
+            # Print validation issues and suggested repair layer so the cause is visible
+            val_detail = validation.get("validation") or {}
+            issues = val_detail.get("issues") or []
+            suggested = val_detail.get("suggested_repair_layer")
+            if issues:
+                print(f"  • Validation issues ({len(issues)}):")
+                for issue in issues:
+                    lyr = issue.get("layer", "?")
+                    msg = issue.get("message", "")
+                    print(f"      [{lyr}] {msg}")
+            if suggested and suggested != layer:
+                print(f"  • Suggested repair layer (from validator): {suggested}")
+            print(f"  • Targeted repair layer: {layer}")
+            repair_record = await self.maintainer.repair_representation(
+                failure_context={
+                    "error_message": error_message,
+                    "domain_path": pddl_files.get("domain_path") if pddl_files else None,
+                    "problem_path": pddl_files.get("problem_path") if pddl_files else None,
+                    "current_domain_pddl": domain_content,
+                    "current_problem_pddl": problem_content,
+                },
+                layer=layer,
+            )
+            print(f"  ✓ Layer repair complete (valid={repair_record['validation']['valid']})")
+
+            if self.tracker:
+                print("  • Updating ObjectTracker with repaired predicates/actions...")
+                await self.maintainer.update_object_tracker_from_domain(self.tracker)
+                self.tracker.set_task_context(
+                    task_description=self.current_task,
+                    available_actions=self.task_analysis.action_context() if self.task_analysis else [],
+                    goal_objects=self.task_analysis.goal_object_references() if self.task_analysis else [],
+                )
+
+            self.task_analysis = self.maintainer.task_analysis
+            self._set_state(OrchestratorState.READY_FOR_PLANNING)
+            return True
         except Exception as e:
-            import traceback
-            traceback.print_exc()
             print(f"  ⚠ Refinement failed: {e}")
             self._set_state(OrchestratorState.READY_FOR_PLANNING)
             return False
@@ -1391,6 +1514,50 @@ class TaskOrchestrator:
         self.last_planning_error = None
 
         while self.refinement_attempts <= self.config.max_refinement_attempts:
+            should_prevalidate = True
+            if (
+                wait_for_objects
+                and self.refinement_attempts == 0
+                and self.tracker
+                and hasattr(self.tracker, "registry")
+                and len(self.tracker.registry.get_all_objects()) == 0
+            ):
+                should_prevalidate = False
+
+            if self.maintainer and should_prevalidate:
+                domain_stats = await self.maintainer.get_domain_statistics()
+                validation = domain_stats.get("validation", {})
+                if validation and not validation.get("valid", True):
+                    issues = validation.get("issues") or []
+                    suggested = validation.get("suggested_repair_layer", "")
+                    print("\n🔧 Representation validation failed before solving; attempting targeted repair...")
+                    if issues:
+                        for issue in issues:
+                            print(f"   [{issue.get('layer','?')}] {issue.get('message','')}")
+                    if suggested:
+                        print(f"   Suggested repair layer: {suggested}")
+                    refined = await self.refine_domain_from_failure(
+                        error_message="Representation validation failed before solving",
+                        pddl_files={
+                            "domain_path": str(output_dir or (self.config.state_dir / "pddl"))
+                            + f"/{self.pddl.domain_name}_domain.pddl",
+                            "problem_path": str(output_dir or (self.config.state_dir / "pddl"))
+                            + f"/{self.pddl.domain_name}_problem.pddl",
+                        },
+                    )
+                    if not refined:
+                        result = SolverResult(
+                            success=False,
+                            plan=[],
+                            plan_length=0,
+                            plan_cost=None,
+                            search_time=None,
+                            nodes_expanded=None,
+                            error_message="Representation validation failed before solving",
+                        )
+                        return result
+                    continue
+
             # Try to solve (wait for objects only on first attempt)
             result = await self.solve_and_plan(
                 algorithm=algorithm,
@@ -1407,18 +1574,15 @@ class TaskOrchestrator:
                     print(f"\n✓ Planning succeeded after {self.refinement_attempts} refinement(s)")
                 return result
 
-            # Check if this is a refinable error
-            if not self._is_refinable_error(result.error_message):
-                print(f"\n✗ Planning failed with non-refinable error")
-                return result
-
-            # Check if auto-refine is enabled
             if not self.config.auto_refine_on_failure:
                 print(f"\n⚠ Auto-refinement disabled. Use refine_domain_from_failure() manually.")
                 return result
 
-            # Try to refine
-            print(f"\n🔧 Detected refinable planning error, attempting domain refinement: {result.error_message}...")
+            if not self._is_refinable_error(result.error_message):
+                print(f"\n✗ Planning failed with non-refinable error")
+                return result
+
+            print(f"\n🔧 Planning failed; attempting targeted layer repair: {result.error_message}...")
 
             # Get PDDL file paths
             pddl_files = {
@@ -1435,7 +1599,7 @@ class TaskOrchestrator:
                 print(f"\n✗ Could not refine domain further")
                 return result
 
-            # Loop will retry with refined domain
+            # Loop will retry with repaired representation
 
         print(f"\n✗ Max refinement attempts reached")
         return result
@@ -1588,8 +1752,17 @@ class TaskOrchestrator:
             "detection_count": self.detection_count,
             "last_snapshot_id": self.last_snapshot_id,
             "task_analysis": {
-                "goal_objects": self.task_analysis.goal_objects if self.task_analysis else [],
-                "relevant_predicates": self.task_analysis.relevant_predicates if self.task_analysis else [],
+                "abstract_goal": {
+                    "summary": self.task_analysis.abstract_goal.summary,
+                    "goal_literals": self.task_analysis.abstract_goal.goal_literals,
+                    "goal_objects": self.task_analysis.abstract_goal.goal_objects,
+                } if self.task_analysis else {},
+                "predicate_inventory": self.task_analysis.predicate_inventory.predicates if self.task_analysis else [],
+                "grounding_summary": {
+                    "object_bindings": self.task_analysis.grounding_summary.object_bindings,
+                    "missing_references": self.task_analysis.grounding_summary.missing_references,
+                } if self.task_analysis else {},
+                "diagnostics": self.task_analysis.diagnostics if self.task_analysis else {},
             } if self.task_analysis else None,
             "files": {
                 "registry": str(registry_path),

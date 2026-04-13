@@ -1,0 +1,502 @@
+startThreads creating 1 threads.
+starting thread 0
+started thread 0 
+argc=2
+argv[0] = --unused
+argv[1] = --start_demo_name=Physics Server
+ExampleBrowserThreadFunc started
+X11 functions dynamically loaded using dlopen/dlsym OK!
+X11 functions dynamically loaded using dlopen/dlsym OK!
+Creating context
+Created GL 3.3 context
+Direct GLX rendering context obtained
+Making context current
+GL_VENDOR=Intel
+GL_RENDERER=Mesa Intel(R) Graphics (RPL-P)
+GL_VERSION=4.6 (Core Profile) Mesa 25.0.7-0ubuntu0.24.04.2
+GL_SHADING_LANGUAGE_VERSION=4.60
+pthread_getconcurrency()=0
+Version = 4.6 (Core Profile) Mesa 25.0.7-0ubuntu0.24.04.2
+Vendor = Intel
+Renderer = Mesa Intel(R) Graphics (RPL-P)
+b3Printf: Selected demo: Physics Server
+startThreads creating 1 threads.
+starting thread 0
+started thread 0 
+MotionThreadFunc thread started
+ven = Intel
+Workaround for some crash in the Intel OpenGL driver on Linux/Ubuntu
+ven = Intel
+Workaround for some crash in the Intel OpenGL driver on Linux/Ubuntu
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: link_eef
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_link
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_depth_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_depth_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_depth_optical_centered_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_color_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_color_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_left_ir_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_left_ir_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_right_ir_frame
+b3Pri
+[1m[34m========================================================================[0m
+[1m[34m  Orchestrator Simulation Demo[0m
+[1m[34m========================================================================[0m
+    [33mTask:[0m Sort the blocks into the container that matches each block's color: put red blocks in the red container and blue blocks in the blue container
+    [33mSim objects placed:[0m ['red_block_1', 'blue_block_1', 'red_container_1', 'blue_container_1', 'table_1']
+    [33mOutput:[0m outputs/sim_demo/runs/20260330_125313
+    [33mPerception:[0m GSAM2 (RAM+ + GroundingDINO + SAM2)
+    [33mSAM2 ckpt:[0m /home/liam/installs/Grounded-SAM-2/checkpoints/sam2.1_hiera_large.pt
+    [33mRAM+ ckpt:[0m /home/liam/installs/Grounded-SAM-2/ram_checkpoints/ram_plus_swin_large_14m.pth
+    [33mPlanning LLM:[0m Google GenAI (gemini-3-flash-preview)
+    [33mDecomposer LLM:[0m Google GenAI (gemini-robotics-er-1.5-preview)
+    [33mRun ID:[0m 20260330_125313
+  [32m✓[0m Google GenAI client ready (model=gemini-3-flash-preview)
+
+[1m[36m── Starting PyBullet simulation environment ────────────────────────────[0m
+[90m12:53:27[0m [36mINFO    [0m [90m[scene_environmen][0m Loaded xArm7 URDF (robot_id=1, client=0)
+[90m12:53:28[0m [36mINFO    [0m [90m[scene_environmen][0m Added 5 scene objects (client=0)
+  [32m✓[0m PyBullet GUI started — xArm7 aimed at work surface
+[90m12:53:29[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [0.13, 1.50]m (client=0)
+  [32m✓[0m Sim camera verified: 640×480 RGB, depth [0.13, 1.50]m
+    [33mCamera preview saved:[0m outputs/sim_demo/runs/20260330_125313/initial_camera_view.png
+
+[1m[36m── Configuring TaskOrchestrator ────────────────────────────────────────[0m
+  [32m✓[0m Config built — use_layered_generation=True, perception=GSAM2, planning=GenAI, solver=auto
+    [33mstate_dir:[0m outputs/sim_demo/runs/20260330_125313/orchestrator_state
+    [33mdkb_dir:[0m outputs/sim_demo/runs/20260330_125313/dkb
+
+[1m[36m── Initialising orchestrator subsystems ────────────────────────────────[0m
+[90m12:53:33[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Initializing Task Orchestrator...
+[90m12:53:33[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Sim camera mode — frame provider will be injected
+[90m12:53:33[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • PDDL representation created
+ℹ LLMTaskAnalyzer using injected LLMClient: GoogleGenAIClient
+  • Robot description configured (265 chars)
+[90m12:53:33[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • PDDL domain maintainer and monitor initialized
+[90m12:53:33[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Layered domain generator initialized (use_layered_generation=True)
+[90m12:53:33[0m [36mINFO    [0m [90m[ObjectTracker][0m Loaded prompts from /home/liam/dev/vlm-semantic-spatial-perception/config/object_tracker_prompts.yaml
+[90m12:53:33[0m [36mINFO    [0m [90m[ObjectTracker][0m ObjectTracker initialized with injected LLMClient: GoogleGenAIClient
+[90m12:53:33[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Continuous object tracker initialized
+  • PDDL solver initialized (backend: pyperplan, available: fast-downward-docker, pyperplan)
+[90m12:53:33[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Auto-save enabled on: detection updates, state changes
+[90m12:53:33[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: uninitialized → idle
+[90m12:53:33[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Task Orchestrator initialized and ready
+  [32m✓[0m Orchestrator initialised
+
+[1m[36m── Swapping to GSAM2 perception backend ────────────────────────────────[0m
+    [33mDevice:[0m cuda
+    [33mLoading:[0m GroundingDINO + SAM2 (this may take 30-60s)…
+[90m12:53:33[0m [36mINFO    [0m [90m[sim_demo][0m Loading GSAM2 models — SAM2 ckpt: /home/liam/installs/Grounded-SAM-2/checkpoints/sam2.1_hiera_large.pt
+[90m12:53:33[0m [36mINFO    [0m [90m[sim_demo][0m RAM+ ckpt: /home/liam/installs/Grounded-SAM-2/ram_checkpoints/ram_plus_swin_large_14m.pth
+[90m12:53:33[0m [36mINFO    [0m [90m[GSAM2Tracker][0m Loading GroundingDINO (IDEA-Research/grounding-dino-tiny) + SAM2 (/home/liam/installs/Grounded-SAM-2/checkpoints/sam2.1_hiera_large.pt) on cuda…
+[90m12:53:44[0m [36mINFO    [0m [90m[root][0m Loaded checkpoint sucessfully
+[90m12:53:49[0m [36mINFO    [0m [90m[root][0m Loaded checkpoint sucessfully
+[90m12:53:49[0m [36mINFO    [0m [90m[GSAM2Tracker][0m GroundingDINO + SAM2 loaded.
+[90m12:53:49[0m [36mINFO    [0m [90m[GSAM2Tracker][0m Loading RAM+ tagger from /home/liam/installs/Grounded-SAM-2/ram_checkpoints/ram_plus_swin_large_14m.pth…
+--------------
+/home/liam/installs/Grounded-SAM-2/ram_checkpoints/ram_plus_swin_large_14m.pth
+--------------
+load checkpoint from /home/liam/installs/Grounded-SAM-2/ram_checkpoints/ram_plus_swin_large_14m.pth
+vit: swin_l
+[90m12:54:14[0m [36mINFO    [0m [90m[GSAM2Tracker][0m RAM+ tagger loaded.
+  [32m✓[0m GSAM2 tracker active (SAM2 + RAM+) on cuda (41.2s)
+  [32m✓[0m Sim frame provider injected into tracker
+
+[1m[36m── Initial perception pass ─────────────────────────────────────────────[0m
+[Prompt Updated] 'object. sort. blocks. container. matches each. block s. color. red blocks. red container. blue blocks. blue container.'. Tracker state reset.
+[90m12:54:15[0m [36mINFO    [0m [90m[GSAM2Tracker][0m GSAM2 task hints injected: ['sort', 'blocks', 'container', 'matches each', 'block s', 'color', 'red blocks', 'red container', 'blue blocks', 'blue container']
+[90m12:54:15[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:54:15[0m [36mINFO    [0m [90m[TaskOrchestrator][0m STARTING CONTINUOUS DETECTION
+[90m12:54:15[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:54:15[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Update interval: 4.0s
+[90m12:54:15[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Minimum observations: 3
+[90m12:54:15[0m [36mINFO    [0m [90m[GSAM2Tracker][0m GSAM2ContinuousObjectTracker started
+[90m12:54:15[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: idle → detecting
+[90m12:54:15[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Continuous detection started
+[90m12:54:15[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:54:16[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [0.13, 1.50]m (client=0)
+[Prompt Updated] 'blue. cardboard box. cube. icon. illustration. rectangle. square. sort. blocks. container. matches each. block s. color. red blocks. red container. blue blocks. blue container.'. Tracker state reset.
+[90m12:54:18[0m [36mINFO    [0m [90m[root][0m For numpy array image, we assume (HxWxC) format
+[90m12:54:18[0m [36mINFO    [0m [90m[root][0m Computing image embeddings for the provided image...
+[90m12:54:18[0m [36mINFO    [0m [90m[root][0m Image embeddings computed.
+[90m12:54:20[0m [36mINFO    [0m [90m[sim_demo][0m Detection cycle 1 — 15 objects observed
+[90m12:54:20[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:54:20[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:54:20[0m [33mWARNING [0m [90m[TaskOrchestrator][0m Snapshot failed: 'GSAM2ContinuousObjectTracker' object has no attribute 'get_last_detection_bundle'
+[90m12:54:21[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [0.13, 1.50]m (client=0)
+[90m12:54:22[0m [36mINFO    [0m [90m[sim_demo][0m Detection cycle 2 — 15 objects observed
+[90m12:54:22[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:54:22[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:54:22[0m [33mWARNING [0m [90m[TaskOrchestrator][0m Snapshot failed: 'GSAM2ContinuousObjectTracker' object has no attribute 'get_last_detection_bundle'
+[90m12:54:24[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [0.13, 1.50]m (client=0)
+[90m12:54:27[0m [36mINFO    [0m [90m[sim_demo][0m Detection cycle 3 — 15 objects observed
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:54:27[0m [33mWARNING [0m [90m[TaskOrchestrator][0m Snapshot failed: 'GSAM2ContinuousObjectTracker' object has no attribute 'get_last_detection_bundle'
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Stopping continuous detection...
+[90m12:54:27[0m [36mINFO    [0m [90m[GSAM2Tracker][0m GSAM2ContinuousObjectTracker stopped
+[90m12:54:27[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: detecting → idle
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Detection stopped
+  [32m✓[0m Pre-detected 15 object(s): ['cardboard_box_1', 'red_container_2', 'red_container_3', 'blue_container_4', 'blue_container_5', 'red_blocks_6', 'blocks_7', 'blue_blocks_8', 'blocks_9', 'blocks_10', 'red_blocks_11', 'red_blocks_12', 'blue_container_13', 'blocks_14', 'blocks_red_blocks_15']
+
+[1m[36m── Processing task request — layered domain generation ─────────────────[0m
+[90m12:54:27[0m [36mINFO    [0m [90m[sim_demo][0m Task: Sort the blocks into the container that matches each block's color: put red blocks in the red container and blue blocks in the blue container
+[90m12:54:27[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: idle → analyzing_task
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m PROCESSING TASK REQUEST
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Task: "Sort the blocks into the container that matches each block's color: put red blocks in the red container and blue blocks in the blue container"
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Analyzing task with LLM...
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Using layered domain generator (L1–L5 pipeline)...
+
+[LayeredDomainGenerator] Generating domain for: 'Sort the blocks into the container that matches each block's color: put red blocks in the red container and blue blocks in the blue container'
+  Scene objects: ['cardboard_box_1', 'red_container_2', 'red_container_3', 'blue_container_4', 'blue_container_5', 'red_blocks_6', 'blocks_7', 'blue_blocks_8', 'blocks_9', 'blocks_10', 'red_blocks_11', 'red_blocks_12', 'blue_container_13', 'blocks_14', 'blocks_red_blocks_15']
+[90m12:54:27[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:54:27[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+  [L1] Goals: ['(in-container red_blocks_6 red_container_2)', '(in-container red_blocks_11 red_container_3)', '(in-container red_blocks_12 red_container_2)', '(in-container blocks_red_blocks_15 red_container_3)', '(in-container blue_blocks_8 blue_container_4)', '(in-container blocks_7 blue_container_5)', '(in-container blocks_9 blue_container_4)', '(in-container blocks_14 red_container_2)']
+[90m12:55:05[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+  [L2 repair] Auto-generated checked variant: (checked-object-graspable ?obj - object)
+  [L2 repair] Auto-generated checked variant: (checked-object-reachable ?obj - object)
+  [L2] Predicates: ['(in-container ?obj - object ?container - object)', '(on ?obj - object ?surf - surface)', '(holding ?obj - object)', '(hand-empty)', '(clear ?obj - object)', '(object-graspable ?obj - object)', '(object-reachable ?obj - object)', '(checked-object-graspable ?obj - object)', '(checked-object-reachable ?obj - object)']
+  [L2] Auto-generated checked variants: ['(checked-object-graspable ?obj - object)', '(checked-object-reachable ?obj - object)']
+[90m12:55:45[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:56:26[0m [33mWARNING [0m [90m[google_genai][0m generate_async finish_reason=FinishReason.MAX_TOKENS tokens={'prompt_token_count': 1756, 'candidates_token_count': 315, 'total_token_count': 9934} — response may be truncated
+  [L3] Parse error: No valid JSON found in model output: line 1 column 1 (char 0)
+  raw output: '{\n  "actions": [\n    {\n      "name": "pick",\n      "parameters": [\n        "?obj - object",\n        "?surf - surface"\n      ],\n      "precondition": "(and (hand-empty) (on ?obj ?surf) (clear ?obj) (checked-object-graspable ?obj) (checked-object-reachable ?obj))",\n      "effect": "(and (holding ?obj) (not (hand-empty)) (not (on ?obj ?surf)) (clear ?surf) (not (clear ?obj)))"\n    },\n    {\n      "name": "put-in-container",\n      "parameters": [\n        "?obj - object",\n        "?container - object"\n      ],\n      "precondition": "(and (holding ?obj) (checked-object-reachable ?container))",\n      "effect": "(and (in-container ?obj ?container) (hand-empty) (not (holding ?obj)) (clear ?obj))"\n    }\n  ],\n  "sensing_actions": [\n    {\n      "name": "check-object-graspable",\n      "parameters": [\n        "?obj - object"\n      ],\n      "precondition": "(and)",\n      "effect": "(checked-object-graspable ?obj)"\n    },\n    {\n      "name": "check-object-reachable",\n      '
+  [L3-repair] Auto-generated sensing action 'check-object-graspable' with effect '(checked-object-graspable ?obj)'
+  [L3-repair] Auto-generated sensing action 'check-object-reachable' with effect '(checked-object-reachable ?obj)'
+  [L3-V4] BFS: reachable=['checked-object-graspable', 'checked-object-reachable', 'clear', 'hand-empty', 'holding', 'in-container', 'on'], unreachable_from_vocab=['object-graspable', 'object-reachable']
+  [L3] Actions: []
+  [L2-V5] Removed 6 unused predicates: ['clear', 'hand-empty', 'holding', 'object-graspable', 'object-reachable', 'on']
+  [L5] Initial true literals: 1, false: 30
+[90m12:56:26[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Task analyzed!
+[90m12:56:26[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Goal objects: red_blocks_6, red_blocks_11, red_blocks_12, blocks_red_blocks_15, blue_blocks_8, blocks_7, blocks_9, blocks_14, red_container_2, red_container_3, blue_container_4, blue_container_5
+[90m12:56:26[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Goal summary: Sort the blocks into the container that matches each block's color: put red blocks in the red container and blue blocks in the blue container
+[90m12:56:26[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Required predicates: 3
+[90m12:56:26[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Action schemas: 2
+[90m12:56:26[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Configuring perception with 3 predicates...
+[90m12:56:26[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+  • Setting task context for grounded object detection...
+[Prompt Updated] 'blue. cardboard box. cube. icon. illustration. rectangle. square. sort. blocks. container. matches each. block s. color. red blocks. red container. blue blocks. blue container. red_blocks_6. red_blocks_11. red_blocks_12. blocks_red_blocks_15. blue_blocks_8. blocks_7. blocks_9. blocks_14. red_container_2. red_container_3. blue_container_4. blue_container_5. matches each. block s. red blocks. red container. blue blocks. blue container.'. Tracker state reset.
+[90m12:56:26[0m [36mINFO    [0m [90m[GSAM2Tracker][0m GSAM2 task hints injected: ['red_blocks_6', 'red_blocks_11', 'red_blocks_12', 'blocks_red_blocks_15', 'blue_blocks_8', 'blocks_7', 'blocks_9', 'blocks_14', 'red_container_2', 'red_container_3', 'blue_container_4', 'blue_container_5', 'sort', 'blocks', 'container', 'matches each', 'block s', 'color', 'red blocks', 'red container', 'blue blocks', 'blue container']
+
+======================================================================
+
+[90m12:56:26[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: analyzing_task → idle
+  [32m✓[0m Domain generated in 119.7s
+    [33mgoal_predicates:[0m ['(in-container red_blocks_6 red_container_2)', '(in-container red_blocks_11 red_container_3)', '(in-container red_blocks_12 red_container_2)', '(in-container blocks_red_blocks_15 red_container_3)', '(in-container blue_blocks_8 blue_container_4)', '(in-container blocks_7 blue_container_5)', '(in-container blocks_9 blue_container_4)', '(in-container blocks_14 red_container_2)']
+    [33mgoal_objects:[0m ['red_blocks_6', 'red_blocks_11', 'red_blocks_12', 'blocks_red_blocks_15', 'blue_blocks_8', 'blocks_7', 'blocks_9', 'blocks_14', 'red_container_2', 'red_container_3', 'blue_container_4', 'blue_container_5']
+    [33mrequired_actions:[0m ['check-object-graspable', 'check-object-reachable']
+    [33mrelevant_predicates:[0m ['(in-container ?obj ?container)', '(checked-object-graspable ?obj)', '(checked-object-reachable ?obj)']
+
+[1m[36m── Starting continuous VLM detection ───────────────────────────────────[0m
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m STARTING CONTINUOUS DETECTION
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Update interval: 4.0s
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Minimum observations: 3
+[90m12:56:29[0m [36mINFO    [0m [90m[GSAM2Tracker][0m GSAM2ContinuousObjectTracker started
+[90m12:56:29[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: idle → detecting
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Continuous detection started
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+  [32m✓[0m Detection started — waiting for 3 cycles
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Stopping continuous detection...
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:56:29[0m [36mINFO    [0m [90m[GSAM2Tracker][0m GSAM2ContinuousObjectTracker stopped
+[90m12:56:29[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: detecting → idle
+[90m12:56:29[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Detection stopped
+  [32m✓[0m Detection complete — 15 objects in registry
+    [33m  cardboard_box_1:[0m type=cardboard_box affordances={'graspable'} pos3d=[0.38254792 0.00853381 0.0108646 ]
+    [33m  red_container_2:[0m type=red_container affordances={'graspable'} pos3d=[0.33646272 0.07912617 0.07079271]
+    [33m  red_container_3:[0m type=red_container affordances={'graspable'} pos3d=[0.50700863 0.12048155 0.0409434 ]
+    [33m  blue_container_4:[0m type=blue_container affordances={'graspable'} pos3d=[ 0.33556015 -0.0766673   0.07077045]
+    [33m  blue_container_5:[0m type=blue_container affordances={'graspable'} pos3d=[ 0.50556722 -0.11816979  0.04091044]
+    [33m  red_blocks_6:[0m type=red_blocks affordances={'graspable'} pos3d=[0.45896268 0.10878717 0.04090782]
+    [33m  blocks_7:[0m type=blocks affordances={'graspable'} pos3d=[ 0.50556722 -0.11816979  0.04091044]
+    [33m  blue_blocks_8:[0m type=blue_blocks affordances={'graspable'} pos3d=[ 0.4812649  -0.0059635   0.01093222]
+    [33m  blocks_9:[0m type=blocks affordances={'graspable'} pos3d=[ 0.4812649  -0.0059635   0.01093222]
+    [33m  blocks_10:[0m type=blocks affordances={'graspable'} pos3d=[0.38254792 0.00853381 0.0108646 ]
+    [33m  red_blocks_11:[0m type=red_blocks affordances={'graspable'} pos3d=[0.50700863 0.12048155 0.0409434 ]
+    [33m  red_blocks_12:[0m type=red_blocks affordances={'graspable'} pos3d=[0.33646272 0.07912617 0.07079271]
+    [33m  blue_container_13:[0m type=blue_container affordances={'graspable'} pos3d=[ 0.50556722 -0.11816979  0.04091044]
+    [33m  blocks_14:[0m type=blocks affordances={'graspable'} pos3d=[0.45896268 0.10878717 0.04090782]
+    [33m  blocks_red_blocks_15:[0m type=blocks_red_blocks affordances={'graspable'} pos3d=[ 0.4812649  -0.0059635   0.01093222]
+[90m12:56:29[0m [33mWARNING [0m [90m[sim_demo][0m No perception pool index found at outputs/sim_demo/runs/20260330_125313/perception_pool/index.json
+  [33m⚠[0m Could not save perception debug image
+
+[1m[36m── Orchestrator status ─────────────────────────────────────────────────[0m
+    [33mstate:[0m idle
+    [33mdetection_count:[0m 3
+    [33mready_for_planning:[0m False
+
+[1m[36m── Generating PDDL domain & problem files ──────────────────────────────[0m
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m GENERATING PDDL FILES
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Syncing objects from tracker to PDDL...
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m     Found 15 objects in registry
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: cardboard_box_1 (cardboard_box)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: red_container_2 (red_container)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: red_container_3 (red_container)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blue_container_4 (blue_container)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blue_container_5 (blue_container)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: red_blocks_6 (red_blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blocks_7 (blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blue_blocks_8 (blue_blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blocks_9 (blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blocks_10 (blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: red_blocks_11 (red_blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: red_blocks_12 (red_blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blue_container_13 (blue_container)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blocks_14 (blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added: blocks_red_blocks_15 (blocks_red_blocks)
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Setting goal state from task analysis...
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Generating files to outputs/sim_demo/runs/20260330_125313/pddl...
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ PDDL files generated:
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Domain: outputs/sim_demo/runs/20260330_125313/pddl/task_execution_domain.pddl
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Problem: outputs/sim_demo/runs/20260330_125313/pddl/task_execution_problem.pddl
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Domain Summary:
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Types: 8
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Predicates: 3
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Actions: 2
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Problem Summary:
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Objects: 15
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Initial literals: 0
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Goal literals: 8
+[90m12:56:31[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+  [32m✓[0m Domain  → outputs/sim_demo/runs/20260330_125313/pddl/task_execution_domain.pddl
+  [32m✓[0m Problem → outputs/sim_demo/runs/20260330_125313/pddl/task_execution_problem.pddl
+
+[1m[36m── Generated PDDL Domain ───────────────────────────────────────────────[0m
+;; Auto-generated PDDL domain: task_execution
+;; Generated at: 2026-03-30 12:56:31
+
+(define (domain task_execution)
+
+  (:requirements :strips)
+
+  (:predicates
+    (checked-object-graspable ?obj)
+    (checked-object-reachable ?obj)
+    (in-container ?obj ?container)
+  )
+
+  ; LLM-generated action
+  (:action check-object-graspable
+    :parameters (?obj)
+    :precondition (and)
+    :effect (checked-object-graspable ?obj)
+  )
+
+  ; LLM-generated action
+  (:action check-object-reachable
+    :parameters (?obj)
+    :precondition (and)
+    :effect (checked-object-reachable ?obj)
+  )
+
+)
+
+[1m[36m── Generated PDDL Problem ──────────────────────────────────────────────[0m
+;; Auto-generated PDDL problem: current_task
+;; Generated at: 2026-03-30 12:56:31
+
+(define (problem current_task)
+  (:domain task_execution)
+
+  (:objects
+    blocks_10
+    blocks_14
+    blocks_7
+    blocks_9
+    blocks_red_blocks_15
+    blue_blocks_8
+    blue_container_13
+    blue_container_4
+    blue_container_5
+    cardboard_box_1
+    red_blocks_11
+    red_blocks_12
+    red_blocks_6
+    red_container_2
+    red_container_3
+  )
+
+  (:init
+    ; Empty initial state
+  )
+
+  (:goal
+    (and
+      (in-container blocks_14 red_container_2)
+      (in-container blocks_7 blue_container_5)
+      (in-container blocks_9 blue_container_4)
+      (in-container blocks_red_blocks_15 red_container_3)
+      (in-container blue_blocks_8 blue_container_4)
+      (in-container red_blocks_11 red_container_3)
+      (in-container red_blocks_12 red_container_2)
+      (in-container red_blocks_6 red_container_2)
+    )
+  )
+)
+
+[1m[36m── Solving PDDL plan (with refinement) ─────────────────────────────────[0m
+
+🔧 Representation validation failed before solving; attempting targeted repair...
+[90m12:56:33[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: idle → refining_domain
+
+======================================================================
+REFINING PDDL DOMAIN (Attempt 1/3)
+======================================================================
+Planning Error: Representation validation failed before solving
+
+  • Targeted repair layer: actions
+[90m12:56:33[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+  ⚠ Refinement failed: No valid JSON found in model output: line 1 column 1 (char 0)
+[90m12:57:14[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: refining_domain → ready_for_planning
+
+[1m[36m── Solver Result ───────────────────────────────────────────────────────[0m
+    [33msuccess:[0m False
+    [33mplan_length:[0m 0
+    [33msearch_time:[0m n/a
+    [33msolve_total:[0m 41.18s
+  [33m⚠[0m No plan found: Representation validation failed before solving
+
+[1m[36m── Saving orchestrator state ───────────────────────────────────────────[0m
+[90m12:57:18[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:57:18[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+  [32m✓[0m State saved → outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+
+[1m[36m── Shutting down ───────────────────────────────────────────────────────[0m
+[90m12:57:18[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Shutting down Task Orchestrator...
+[90m12:57:18[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:57:18[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:57:18[0m [36mINFO    [0m [90m[sim_demo][0m Orchestrator state: ready_for_planning → uninitialized
+[90m12:57:18[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Task Orchestrator shutdown complete
+
+[1m[34m========================================================================[0m
+[1m[34m  Demo Complete[0m
+[1m[34m========================================================================[0m
+    [33mTask:[0m Sort the blocks into the container that matches each block's color: put red blocks in the red container and blue blocks in the blue container
+    [33mRun ID:[0m 20260330_125313
+    [33mPlan success:[0m False
+    [33mOutput dir:[0m outputs/sim_demo/runs/20260330_125313
+
+[1m[34m── Timing Report ───────────────────────────────────────────────────────[0m
+  [33mModel load (GSAM2)                [0m  41.15s  (16.8%)
+  [33mPerception pre-pass               [0m  11.73s  ( 4.8%)
+  [33mDomain generation (L1–L5)         [0m 119.71s  (48.7%)
+  [33mContinuous detection              [0m   0.07s  ( 0.0%)
+  [33mPDDL file generation              [0m   0.01s  ( 0.0%)
+  [33mPDDL solving (+ refinement)       [0m  41.18s  (16.8%)
+[1m[34m  ───────────────────────────────────────────────────────[0m
+  [1mTotal perception time             [0m  11.80s  ( 4.8%)
+  [1mTotal planning time               [0m 160.90s  (65.5%)
+  [1mTotal execution time              [0m   0.00s  ( 0.0%)
+  [1mTotal task time                   [0m 245.65s  (100.0%)
+[90m12:57:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:57:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:57:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:57:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:57:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:57:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+[90m12:57:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 15 objects to outputs/sim_demo/runs/20260330_125313/orchestrator_state/registry.json
+[90m12:57:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/sim_demo/runs/20260330_125313/orchestrator_state/state.json
+ntf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_right_ir_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: link_tcp
+numActiveThreads = 0
+stopping threads
+Thread with taskId 0 exiting
+Thread TERMINATED
+destroy semaphore
+semaphore destroyed
+destroy main semaphore
+main semaphore destroyed
+finished
+numActiveThreads = 0
+btShutDownExampleBrowser stopping threads
+Thread with taskId 0 exiting
+destroy semaphore
+semaphore destroyed
+Thread TERMINATED
+destroy main semaphore
+main semaphore destroyed
+
+[1m[34m========================================================================[0m
+[1m[34m  Orchestrator Simulation Demo[0m
+[1m[34m========================================================================[0m
+    [33mTask:[0m Sort the blocks into the container that matches each block's color: put red blocks in the red container and blue blocks in the blue container
+    [33mSim objects placed:[0m ['red_block_1', 'blue_block_1', 'red_container_1', 'blue_container_1', 'table_1']
+    [33mOutput:[0m outputs/sim_demo/runs/20260330_125724
+    [33mPerception:[0m GSAM2 (RAM+ + GroundingDINO + SAM2)
+    [33mSAM2 ckpt:[0m /home/liam/installs/Grounded-SAM-2/checkpoints/sam2.1_hiera_large.pt
+    [33mRAM+ ckpt:[0m /home/liam/installs/Grounded-SAM-2/ram_checkpoints/ram_plus_swin_large_14m.pth
+    [33mPlanning LLM:[0m Google GenAI (gemini-3-flash-preview)
+    [33mDecomposer LLM:[0m Google GenAI (gemini-robotics-er-1.5-preview)
+    [33mRun ID:[0m 20260330_125724

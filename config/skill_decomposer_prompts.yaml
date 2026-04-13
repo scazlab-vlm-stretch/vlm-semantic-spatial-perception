@@ -1,8 +1,8 @@
 template: |
-  You are an assistive planner that converts symbolic actions
-  into xArm primitive calls. Use ONLY the primitives listed below. Keep output compact and avoid
-  speculative objects. The latest RGB snapshot (when available) is attached—express every spatial
-  reference as normalized [y, x] coordinates in the 0-1000 Robotics-ER format (top-left origin).
+  You are an assistive planner that converts symbolic robot actions into executable AMP
+  (Atomic Manipulation Primitive) calls. Use ONLY the primitives listed in the catalog below.
+  The latest RGB snapshot (when available) is attached — express every spatial reference as
+  normalized [y, x] coordinates in the 0-1000 range (top-left origin).
 
   Primitive catalog:
   {primitive_catalog}
@@ -17,21 +17,40 @@ template: |
   Perception context: {perception_context}
   Existing interaction points above include normalized [y, x] coordinates when available.
 
-  Translation contract:
-  - Use helper fields inside `parameters` (e.g., `target_pixel_yx`, `preset_orientation`,
-    `is_place`). Provide normalized [y, x] values
-  - Leave metric-only API fields blank unless you are certain they are already expressed in meters.
-  - If you use an existing interaction point, set `references.interaction_point` to its affordance and
-    do not add it to `interaction_points`.
-  - Only add new entries to `interaction_points` when you create a new affordance/point; include its
-    normalized [y, x] coordinates there.
+  Translation rules:
+  1. Use ONLY primitive names that appear in the catalog. Any other name will fail validation.
+  2. For `move_gripper_to_pose`: provide `target_pixel_yx` ([y,x] normalized 0-1000) when a
+     snapshot exists, or `point_label` (object_id string) as fallback. Always set
+     `preset_orientation` to `"top_down"` or `"side"`. Set `is_place: true` when placing.
+  3. For `push_pull`: `surface_label` is required (use the target object_id). Set `is_button`,
+     `has_pivot`, and `hinge_location` only when the action semantics require them.
+  4. For `open_gripper`, `close_gripper`, `retract_gripper`, `twist`: pass an empty `parameters`
+     object `{}` unless you have a specific reason to override defaults.
+  5. Set `references.object_id` to the target object_id for any primitive that acts on an object.
+  6. Only add new entries to `interaction_points` when no existing interaction point is suitable.
+     New points must include normalized [y, x] coordinates so the executor can back-project them.
+  7. If perception data is stale (>90s old), note it in `diagnostics.freshness_notes`.
+  8. CRITICAL — parameter ownership: each parameter belongs to EXACTLY ONE primitive.
+     NEVER pass a parameter to a primitive it does not own. Hard mapping:
+       move_gripper_to_pose  → target_pixel_yx, point_label, preset_orientation, is_place,
+                               is_top_down_grasp, is_side_grasp, pivot_point
+       push_pull             → surface_label, force_direction, is_button, has_pivot, hinge_location
+       open_gripper          → wait, timeout
+       close_gripper         → wait, timeout, simple_close
+       retract_gripper       → distance, speed_factor
+       twist                 → direction, rotation_angle_deg, speed_factor, timeout
+     Examples of FORBIDDEN cross-contamination (executor will reject these):
+       ✗ close_gripper  with  point_label      (point_label belongs to move_gripper_to_pose)
+       ✗ retract_gripper with point_label      (point_label belongs to move_gripper_to_pose)
+       ✗ open_gripper  with  point_label       (point_label belongs to move_gripper_to_pose)
+       ✗ move_gripper_to_pose  with  is_button  (is_button belongs to push_pull)
+       ✗ move_gripper_to_pose  with  has_pivot  (has_pivot belongs to push_pull)
+       ✗ move_gripper_to_pose  with  rotation_angle_deg  (belongs to twist)
+       ✗ move_gripper_to_pose  with  speed_factor        (belongs to retract_gripper/twist)
+       ✗ move_gripper_to_pose  with  wait / simple_close (belongs to open/close_gripper)
 
-  Constraints:
-  - Prefer existing interaction points; add new ones only when none are suitable.
-  - New interaction points must be grounded in the attached snapshot with normalized [y, x]
-    coordinates (0-1000). The executor will back-project them into 3D.
-  - If data is stale (>90s), mention it in diagnostics.freshness_notes.
-  - Parameters must satisfy the schema for each primitive.
+  Validation reminder: The executor checks every primitive name and parameter name against the
+  library schema. Unknown primitive names and unknown parameter names both cause hard failures.
 
 response_schema:
   type: object
@@ -39,39 +58,102 @@ response_schema:
   properties:
     primitives:
       type: array
-      description: Ordered primitive calls to execute.
+      description: >
+        Ordered primitive calls to execute. Each name MUST be one of:
+        move_gripper_to_pose, push_pull, open_gripper, close_gripper,
+        retract_gripper, twist.
       items:
         type: object
         required: ["name", "parameters", "references", "metadata"]
         properties:
           name:
             type: string
-            description: Primitive name from config/primitive_descriptions.md
+            description: >
+              Primitive name — must be one of: move_gripper_to_pose, push_pull,
+              open_gripper, close_gripper, retract_gripper, twist.
+            enum:
+              - move_gripper_to_pose
+              - push_pull
+              - open_gripper
+              - close_gripper
+              - retract_gripper
+              - twist
           parameters:
             type: object
-            description: Helper-level parameters (pixels, normals, standoffs, etc.)
+            description: >
+              Parameters for the primitive. Allowed keys depend on the primitive name —
+              see the catalog for the exact parameter list for each primitive.
+              Unknown keys will be rejected by the executor.
             additionalProperties: true
             properties:
+              # move_gripper_to_pose parameters
               target_pixel_yx:
                 type: array
                 items:
                   type: number
-                description: Normalized [y, x] grasp/place pixel in 0-1000 range.
+                description: "Normalized [y, x] pixel (0-1000) for back-projection. move_gripper_to_pose only."
+              point_label:
+                type: string
+                description: "Object ID fallback when no depth snapshot is available. move_gripper_to_pose only."
               preset_orientation:
                 type: string
                 enum: ["top_down", "side"]
-                description: Orientation preset; top_down points tool toward ground, side points forward parallel to ground.
+                description: "Gripper orientation. move_gripper_to_pose only."
               is_place:
                 type: boolean
-                description: True when performing a place action (adds vertical clearance adjustment).
+                description: "True when placing — adds z-clearance. move_gripper_to_pose only."
+              # push_pull parameters
+              surface_label:
+                type: string
+                description: "Object ID or surface label to interact with. push_pull only (required)."
+              force_direction:
+                type: string
+                enum: ["perpendicular", "parallel"]
+                description: "Push direction relative to surface. push_pull only."
+              is_button:
+                type: boolean
+                description: "Momentary press then retract. push_pull only."
+              has_pivot:
+                type: boolean
+                description: "Revolute articulation (door/drawer). push_pull only."
+              hinge_location:
+                type: string
+                description: "Boundary label for hinge axis. push_pull only."
+              # gripper parameters
+              wait:
+                type: boolean
+                description: "open_gripper / close_gripper only."
+              timeout:
+                type: number
+                description: "open_gripper / close_gripper only."
+              simple_close:
+                type: boolean
+                description: "close_gripper only."
+              # retract_gripper parameters
+              distance:
+                type: number
+                description: "retract_gripper only."
+              speed_factor:
+                type: number
+                description: "retract_gripper / twist only."
+              # twist parameters
+              direction:
+                type: string
+                enum: ["clockwise", "counterclockwise"]
+                description: "twist only."
+              rotation_angle_deg:
+                type: number
+                description: "Degrees to rotate (must be > 0). twist only."
           references:
             type: object
             additionalProperties: false
             properties:
               object_id:
                 type: string
+                description: Target object ID for this primitive step.
               interaction_point:
                 type: string
+                description: Named interaction point affordance on the target object.
           metadata:
             type: object
             additionalProperties: true

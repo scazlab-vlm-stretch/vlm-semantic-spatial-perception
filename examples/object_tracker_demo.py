@@ -37,6 +37,7 @@ def get_test_image():
         )
 
         # Wait for stable frames
+        print("  Warming up camera (30 frames)...")
         for _ in range(30):
             camera.capture_frame()
 
@@ -52,8 +53,17 @@ def get_test_image():
         print(f"✓ Captured frame from RealSense: {color_image.shape}")
         return color_image, depth_image, intrinsics
 
+    except ImportError as e:
+        print(f"⚠ RealSense module not available: {e}")
+        print("   Install pyrealsense2 to use live camera")
+        return None, None, None
+    except RuntimeError as e:
+        print(f"⚠ RealSense camera error: {e}")
+        print("   Check that camera is connected and not in use by another process")
+        return None, None, None
     except Exception as e:
-        print(f"RealSense not available: {e}")
+        print(f"⚠ Unexpected error accessing RealSense: {type(e).__name__}")
+        print(f"   Error details: {e}")
         return None, None, None
 
 
@@ -203,12 +213,25 @@ async def main():
     print("Initializing ObjectTracker...")
     from src.perception import ObjectTracker
 
-    tracker = ObjectTracker(
-        api_key=api_key,
-        model_name="auto",
-        thinking_budget=0,
-        max_parallel_requests=5
-    )
+    try:
+        tracker = ObjectTracker(
+            api_key=api_key,
+            model_name="auto",
+            thinking_budget=0,
+            max_parallel_requests=5
+        )
+        print("✓ ObjectTracker initialized successfully")
+        print(f"  Model: {tracker.model_name}")
+        print(f"  Max parallel requests: {tracker.max_parallel_requests}")
+    except Exception as e:
+        print(f"\n✗ ERROR: Failed to initialize ObjectTracker!")
+        print(f"   Error type: {type(e).__name__}")
+        print(f"   Error message: {str(e)}")
+        print(f"\n   This could be due to:")
+        print(f"   - Invalid API key format")
+        print(f"   - Missing configuration files")
+        print(f"   - Import errors")
+        return
     print()
 
     # Get image
@@ -243,14 +266,46 @@ async def main():
     print("\n" + "=" * 60)
     print("DETECTING OBJECTS")
     print("=" * 60)
-    objects = await tracker.detect_objects(
-        color_image,
-        depth_image,
-        intrinsics
-    )
+
+    try:
+        objects = await tracker.detect_objects(
+            color_image,
+            depth_image,
+            intrinsics
+        )
+    except Exception as e:
+        print(f"\n✗ ERROR: Object detection failed!")
+        print(f"   Error type: {type(e).__name__}")
+        print(f"   Error message: {str(e)}")
+        print(f"\n   This could be due to:")
+        print(f"   - Invalid API key (check GEMINI_API_KEY)")
+        print(f"   - Network connectivity issues")
+        print(f"   - Invalid image format")
+        print(f"   - API rate limiting")
+        print(f"\n   Check the logs above for more details.")
+
+        # Clean up and exit
+        await tracker.aclose()
+        cv2.destroyAllWindows()
+        return
 
     # Print results
     print_detection_results(objects)
+
+    # Log detection summary
+    if objects:
+        print(f"\n✓ Successfully detected {len(objects)} object(s)")
+        total_affordances = sum(len(obj.affordances) for obj in objects)
+        total_interaction_points = sum(len(obj.interaction_points) for obj in objects)
+        print(f"  Total affordances: {total_affordances}")
+        print(f"  Total interaction points: {total_interaction_points}")
+    else:
+        print("\n⚠ WARNING: No objects detected!")
+        print("   Possible reasons:")
+        print("   - Scene is empty or too dark")
+        print("   - Objects are too far from camera")
+        print("   - VLM failed to recognize objects")
+        print("   - Try adjusting lighting or camera position")
 
     # Save detections prompt
     if objects:

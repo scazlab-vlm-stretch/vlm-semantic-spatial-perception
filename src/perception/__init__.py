@@ -16,6 +16,7 @@ from .object_registry import (
     InteractionPoint,
     DetectedObjectRegistry
 )
+from .gsam2_object_tracker import GSAM2ObjectTracker, GSAM2ContinuousObjectTracker
 
 __all__ = [
     # Object tracking system (focused on detection & affordances)
@@ -26,4 +27,7 @@ __all__ = [
     # Continuous background tracking
     "ContinuousObjectTracker",
     "TrackingStats",
+    # GSAM2-based tracking (RAM+ + GroundingDINO + SAM2)
+    "GSAM2ObjectTracker",
+    "GSAM2ContinuousObjectTracker",
 ]

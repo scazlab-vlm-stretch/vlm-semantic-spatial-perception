@@ -141,31 +141,48 @@ class PrimitiveExecutor:
         # Translate each primitive
         for idx, primitive in enumerate(plan.primitives):
             self.logger.debug(
-                "[prepare_plan] [%d/%d] %s parameters: %s",
+                "[prepare_plan] [%d/%d] %s parameters: %s references: %s",
                 idx + 1,
                 len(plan.primitives),
                 primitive.name,
                 primitive.parameters,
+                primitive.references,
             )
 
             pixel = primitive.parameters.pop("target_pixel_yx", None)
             if pixel is not None:
                 if artifacts.depth is None or artifacts.intrinsics is None:
-                    raise RuntimeError(
-                        f"{primitive.name}: unable to back-project normalized {pixel} (missing depth/intrinsics)"
+                    self.logger.warning(
+                        "%s: cannot back-project pixel %s (missing depth/intrinsics) — "
+                        "falling back to registry position via references.object_id",
+                        primitive.name, pixel,
                     )
+                else:
+                    coords = [float(pixel[0]), float(pixel[1])]
+                    point = compute_3d_position(coords, artifacts.depth, artifacts.intrinsics)
+                    if point is None:
+                        self.logger.warning(
+                            "%s: back-projection returned no point for %s — "
+                            "falling back to registry position via references.object_id",
+                            primitive.name, pixel,
+                        )
+                    else:
+                        depth_offset = float(primitive.parameters.get("depth_offset_m", 0.0) or 0.0)
+                        if depth_offset:
+                            point = [point[0], point[1], point[2] + depth_offset]
+                        primitive.parameters["target_position"] = point
+                        primitive.parameters.pop("depth_offset_m", None)
 
-                coords = [float(pixel[0]), float(pixel[1])]
-                point = compute_3d_position(coords, artifacts.depth, artifacts.intrinsics)
-                if point is None:
-                    raise RuntimeError(f"{primitive.name}: back-projection returned no point for {pixel}")
-
-                depth_offset = float(primitive.parameters.get("depth_offset_m", 0.0) or 0.0)
-                if depth_offset:
-                    point = [point[0], point[1], point[2] + depth_offset]
-
-                primitive.parameters["target_position"] = point
-                primitive.parameters.pop("depth_offset_m", None)
+            # If no target_position yet, inject point_label from references so the
+            # primitives implementation can resolve the position from the registry.
+            if "target_position" not in primitive.parameters:
+                obj_id = primitive.references.get("object_id")
+                if obj_id and "point_label" not in primitive.parameters:
+                    primitive.parameters["point_label"] = obj_id
+                    self.logger.debug(
+                        "%s: injected point_label=%r from references.object_id",
+                        primitive.name, obj_id,
+                    )
 
             # Transform coordinates to base frame
             if cam_pose:
@@ -176,6 +193,25 @@ class PrimitiveExecutor:
                     base_pos = cam_pose.rotation.apply(pos) + cam_pose.position
                     primitive.parameters[key] = [float(base_pos[0]), float(base_pos[1]), float(base_pos[2])]
                     self.logger.debug("Transformed %s: %s -> %s", key, pos, primitive.parameters[key])
+
+        # Auto-strip unknown parameters (LLM cross-contamination fallback).
+        # Unknown parameters are logged as warnings and removed rather than
+        # raising hard failures — the remaining params may still be valid.
+        for idx, primitive in enumerate(plan.primitives):
+            schema = PRIMITIVE_LIBRARY.get(primitive.name)
+            if schema is None:
+                continue
+            allowed = set(schema.required_params) | set(schema.optional_params)
+            unknown = [k for k in list(primitive.parameters) if k not in allowed]
+            for k in unknown:
+                self.logger.warning(
+                    "[prepare_plan] [%d] stripping unknown param '%s' from %s",
+                    idx, k, primitive.name,
+                )
+                primitive.parameters.pop(k)
+                plan.diagnostics.warnings.append(
+                    f"[{idx}] stripped unknown parameter '{k}' from {primitive.name}"
+                )
 
         validation_errors = plan.validate(PRIMITIVE_LIBRARY)
         if validation_errors:
@@ -217,21 +253,6 @@ class PrimitiveExecutor:
 
             if isinstance(value, np.ndarray):
                 return value.tolist()
-        except Exception:
-            pass
-
-        # cuRobo JointState
-        try:
-            from curobo.types.state import JointState  # type: ignore
-
-            if isinstance(value, JointState):
-                return {
-                    "position": self._json_safe(getattr(value, "position", None)),
-                    "velocity": self._json_safe(getattr(value, "velocity", None)),
-                    "acceleration": self._json_safe(getattr(value, "acceleration", None)),
-                    "jerk": self._json_safe(getattr(value, "jerk", None)),
-                    "joint_names": self._json_safe(getattr(value, "joint_names", None)),
-                }
         except Exception:
             pass
 

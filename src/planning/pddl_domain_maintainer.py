@@ -1,165 +1,91 @@
 """
-PDDL Domain Maintainer
-
-Manages PDDL domain construction and updates based on tasks and environmental observations.
-Maintains a consistent domain representation that evolves as more information is gathered.
+PDDL representation builder with staged validation and repair.
 """
 
-import asyncio
-import re
-from typing import Dict, List, Optional, Set, Tuple, Union
-from pathlib import Path
 import json
+import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import numpy as np
-from PIL import Image
 import yaml
-from google.genai import types
+from PIL import Image
 
 from ..utils.prompt_utils import render_prompt_template
-from .llm_task_analyzer import LLMTaskAnalyzer, TaskAnalysis
+from .llm_task_analyzer import LLMTaskAnalyzer
 from .pddl_representation import PDDLRepresentation
+from .utils.task_types import (
+    AbstractGoal,
+    ActionSchemaLibrary,
+    GroundingSummary,
+    LayeredDomainArtifact,
+    PredicateInventory,
+    TaskAnalysis,
+)
+
+
+LOGICAL_OPERATORS = {"and", "or", "not", "forall", "exists", "when", "imply"}
+REPAIR_LAYER_ORDER = ["actions", "predicates", "goal"]
 
 
 def sanitize_pddl_name(name: str, max_length: int = 50) -> str:
-    """
-    Sanitize a name for use in PDDL.
-
-    PDDL identifiers must:
-    - Start with a letter
-    - Contain only letters, digits, underscores, and hyphens
-    - Not contain spaces, parentheses, quotes, or other special characters
-    - Be reasonably short for readability
+    """Sanitize a raw string for PDDL identifiers.
 
     Args:
-        name: Raw name (e.g., "Black electrical plug (unplugged)")
-        max_length: Maximum length for sanitized name
+        name: Raw name to sanitize.
+        max_length: Maximum allowed identifier length.
 
     Returns:
-        Valid PDDL identifier (e.g., "black_electrical_plug")
+        Sanitized PDDL identifier.
 
-    Examples:
-        >>> sanitize_pddl_name("Black electrical plug (unplugged)")
-        'black_electrical_plug'
-        >>> sanitize_pddl_name("Blue plastic water bottle with 'CHILL' label")
-        'blue_plastic_water_bottle'
-        >>> sanitize_pddl_name("Right black stove knob")
-        'right_black_stove_knob'
+    Example:
+        >>> sanitize_pddl_name("Blue plastic bottle")
+        'blue_plastic_bottle'
     """
-    # Convert to lowercase
-    name = name.lower()
 
-    # Remove content in parentheses (usually state information)
-    name = re.sub(r'\([^)]*\)', '', name)
-
-    # Remove quotes and their content
-    name = re.sub(r"['\"].*?['\"]", '', name)
-
-    # Remove common filler words that don't add semantic meaning
-    filler_words = ['with', 'the', 'a', 'an', 'of']
-    for word in filler_words:
-        name = re.sub(rf'\b{word}\b', '', name)
-
-    # Replace spaces and special chars with underscores
-    name = re.sub(r'[^\w\s-]', '', name)  # Remove special chars
-    name = re.sub(r'\s+', '_', name)  # Replace spaces with underscores
-    name = re.sub(r'_+', '_', name)  # Collapse multiple underscores
-    name = name.strip('_')  # Remove leading/trailing underscores
-
-    # Ensure it starts with a letter
-    if name and not name[0].isalpha():
-        name = 'obj_' + name
-
-    # Truncate if too long, but try to keep meaningful parts
-    if len(name) > max_length:
-        # Try to truncate at underscore boundary
-        parts = name[:max_length].split('_')
-        if len(parts) > 1:
-            name = '_'.join(parts[:-1])  # Drop last partial word
-        else:
-            name = name[:max_length]
-
-    # Fallback for empty names
-    if not name:
-        name = 'object'
-
-    return name
+    cleaned = re.sub(r"\([^)]*\)", "", name.lower())
+    cleaned = re.sub(r"['\"].*?['\"]", "", cleaned)
+    cleaned = re.sub(r"[^\w\s-]", "", cleaned)
+    cleaned = re.sub(r"\s+", "_", cleaned)
+    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
+    if cleaned and not cleaned[0].isalpha():
+        cleaned = f"obj_{cleaned}"
+    if len(cleaned) > max_length:
+        parts = cleaned[:max_length].split("_")
+        cleaned = "_".join(parts[:-1]) if len(parts) > 1 else cleaned[:max_length]
+    return cleaned or "object"
 
 
 def sanitize_pddl_formula(formula: str) -> str:
-    """
-    Sanitize a PDDL formula by removing quoted strings.
+    """Remove quoted strings and normalize whitespace in formulas."""
 
-    LLMs sometimes generate invalid PDDL with quoted strings like:
-      (is-empty ?machine "water_reservoir")
-
-    This should be:
-      (water-reservoir-empty ?machine)
-
-    This function removes quoted strings as a safety measure,
-    though the prompt should prevent them.
-
-    Args:
-        formula: PDDL formula (precondition or effect)
-
-    Returns:
-        Sanitized formula without quoted strings
-
-    Examples:
-        >>> sanitize_pddl_formula('(is-empty ?machine "water_reservoir")')
-        '(is-empty ?machine)'
-        >>> sanitize_pddl_formula('(and (graspable ?obj) (empty-hand))')
-        '(and (graspable ?obj) (empty-hand))'
-    """
     if not formula:
         return formula
-
-    # Remove double-quoted strings
-    formula = re.sub(r'"[^"]*"', '', formula)
-
-    # Remove single-quoted strings
-    formula = re.sub(r"'[^']*'", '', formula)
-
-    # Clean up extra whitespace that may result from removal
-    formula = re.sub(r'\s+', ' ', formula)
-
-    # Clean up spaces before closing parens
-    formula = re.sub(r'\s+\)', ')', formula)
-
-    # Clean up spaces after opening parens
-    formula = re.sub(r'\(\s+', '(', formula)
-
+    formula = re.sub(r'"[^"]*"', "", formula)
+    formula = re.sub(r"'[^']*'", "", formula)
+    formula = re.sub(r"\s+", " ", formula)
+    formula = re.sub(r"\(\s+", "(", formula)
+    formula = re.sub(r"\s+\)", ")", formula)
     return formula.strip()
 
 
 class PDDLDomainMaintainer:
-    """
-    Maintains PDDL domain representation conditioned on tasks and observations.
+    """Build and maintain a staged, validated PDDL representation.
 
-    Responsibilities:
-    - Generate initial domain from task analysis
-    - Update domain as new observations arrive
-    - Maintain consistency between task requirements and observed environment
-    - Notify when domain changes significantly
+    Args:
+        pddl_representation: Mutable PDDL serializer/holder.
+        api_key: Optional Gemini API key.
+        model_name: Model name for staged analysis and repair.
+        prompts_config_path: Optional override for repair prompts.
+        task_analyzer_prompts_path: Optional override for analysis prompts.
 
     Example:
-        >>> maintainer = PDDLDomainMaintainer(pddl_repr, api_key="...")
-        >>>
-        >>> # Initialize domain from task
-        >>> await maintainer.initialize_from_task(
-        ...     "Clean the mug and place it on the shelf",
-        ...     environment_image=camera_frame
-        ... )
-        >>>
-        >>> # Update as observations arrive
-        >>> await maintainer.update_from_observations(detected_objects)
-        >>>
-        >>> # Check if domain is complete
-        >>> is_complete = await maintainer.is_domain_complete()
+        >>> maintainer = PDDLDomainMaintainer(PDDLRepresentation(), api_key="test-key")
+        >>> analysis = await maintainer.build_representation("put the mug on the coaster")
     """
 
-    DEFAULT_PROMPTS_CONFIG = str(
-        Path(__file__).parent.parent.parent / "config" / "pddl_domain_maintainer_prompts.yaml"
+    DEFAULT_PROMPTS_CONFIG = (
+        Path(__file__).resolve().parents[2] / "config" / "pddl_domain_maintainer_prompts.yaml"
     )
 
     def __init__(
@@ -169,6 +95,7 @@ class PDDLDomainMaintainer:
         model_name: str = "gemini-robotics-er-1.5-preview",
         prompts_config_path: Optional[Union[str, Path]] = None,
         task_analyzer_prompts_path: Optional[Union[str, Path]] = None,
+        llm_client: Optional[Any] = None,  # src.llm_interface.LLMClient
     ):
         """
         Initialize domain maintainer.
@@ -179,6 +106,7 @@ class PDDLDomainMaintainer:
             model_name: LLM model to use
             prompts_config_path: Override path to prompts config YAML (defaults to config/pddl_domain_maintainer_prompts.yaml)
             task_analyzer_prompts_path: Override path to prompts config for LLMTaskAnalyzer (defaults to config/llm_task_analyzer_prompts.yaml)
+            llm_client: Optional LLMClient instance; when provided, api_key/model_name are ignored
         """
         if prompts_config_path is None:
             prompts_config_path = self.DEFAULT_PROMPTS_CONFIG
@@ -188,11 +116,12 @@ class PDDLDomainMaintainer:
             api_key=api_key,
             model_name=model_name,
             prompts_config_path=task_analyzer_prompts_path,
+            llm_client=llm_client,
         )
         self.robot_description = self.llm_analyzer.robot_description
         self.prompts_config_path = Path(prompts_config_path)
 
-        with open(self.prompts_config_path, "r", encoding="utf-8") as f:
+        with self.prompts_config_path.open("r", encoding="utf-8") as f:
             config_data = yaml.safe_load(f) or {}
 
         self.prompt_templates = {
@@ -201,43 +130,277 @@ class PDDLDomainMaintainer:
             if key.endswith("_prompt") and isinstance(value, str)
         }
 
-        # Current task context
         self.current_task: Optional[str] = None
         self.task_analysis: Optional[TaskAnalysis] = None
 
-        # Tracking what we've observed
+        self.observed_objects: List[Dict[str, Any]] = []
+        self.observed_relationships: List[str] = []
+        self.observed_predicate_strings: List[str] = []
         self.observed_object_types: Set[str] = set()
         self.observed_predicates: Set[str] = set()
-        self.goal_object_types: Set[str] = set()  # Objects mentioned in task
 
-        # Domain evolution tracking
-        self.domain_version: int = 0
-        self.last_update_observations: int = 0
-
-        # Object type mapping: raw_name -> sanitized_name
-        self._type_name_mapping: Dict[str, str] = {}
-
-        # Global predicates: predicates not related to specific objects (e.g., hand_is_empty, arm_at_home)
-        # These are identified during domain generation and should be true in initial state
+        self.goal_object_types: Set[str] = set()
         self.global_predicates: Set[str] = set()
+        self.domain_version = 0
+        self.last_update_observations = 0
+
+    async def build_representation(
+        self,
+        task: str,
+        scene_context: Optional[Dict[str, Any]] = None,
+        image: Optional[Union[np.ndarray, Image.Image, str, Path]] = None,
+    ) -> TaskAnalysis:
+        """Build the goal, predicate, and action layers.
+
+        Args:
+            task: Natural-language task.
+            scene_context: Optional observed context with keys `objects`,
+                `relationships`, and `predicates`.
+            image: Optional scene image.
+
+        Returns:
+            Staged task analysis.
+        """
+
+        scene_context = scene_context or {}
+        self.current_task = task
+        self.observed_objects = list(scene_context.get("objects") or [])
+        self.observed_relationships = list(scene_context.get("relationships") or [])
+        self.observed_predicate_strings = list(scene_context.get("predicates") or [])
+        self._refresh_observation_indices()
+
+        abstract_goal = self.llm_analyzer.analyze_goal(
+            task_description=task,
+            observed_objects=self.observed_objects,
+            observed_relationships=self.observed_relationships,
+            environment_image=image,
+        )
+        predicate_inventory = self.llm_analyzer.analyze_predicates(
+            task_description=task,
+            abstract_goal=abstract_goal,
+            observed_objects=self.observed_objects,
+            observed_relationships=self.observed_relationships,
+            environment_image=image,
+        )
+        action_schemas = self.llm_analyzer.analyze_actions(
+            task_description=task,
+            abstract_goal=abstract_goal,
+            predicate_inventory=predicate_inventory,
+            observed_objects=self.observed_objects,
+            observed_relationships=self.observed_relationships,
+            environment_image=image,
+        )
+        action_schemas = self._normalize_action_schema_library(action_schemas)
+
+        self.task_analysis = TaskAnalysis(
+            abstract_goal=abstract_goal,
+            predicate_inventory=predicate_inventory,
+            action_schemas=action_schemas,
+            grounding_summary=GroundingSummary(),
+            diagnostics=self._new_diagnostics(),
+        )
+        self.goal_object_types = set(self.task_analysis.goal_object_references())
+        self.global_predicates = self._extract_global_predicates(self.task_analysis.predicate_signatures())
+
+        await self._rebuild_pddl_from_analysis(include_grounding=False)
+        validation = await self._validate_representation()
+        self._record_validation(validation)
+        self.domain_version += 1
+        return self.task_analysis
+
+    async def ground_representation(
+        self,
+        detected_objects: List[Dict[str, Any]],
+        predicates: Optional[List[str]] = None,
+        detected_relationships: Optional[List[str]] = None,
+        image: Optional[Union[np.ndarray, Image.Image, str, Path]] = None,
+    ) -> Dict[str, Any]:
+        """Ground the current representation against the observed world.
+
+        Args:
+            detected_objects: Observed object summaries.
+            predicates: Observed predicate strings.
+            detected_relationships: Optional observed relationships.
+            image: Optional scene image.
+
+        Returns:
+            Grounding/update statistics.
+        """
+
+        if self.task_analysis is None or self.current_task is None:
+            return {"skipped": True, "reason": "no task analysis yet"}
+
+        previous_object_ids = set(self.task_analysis.grounding_summary.observed_object_ids)
+        previous_predicates = set(self.task_analysis.grounding_summary.grounded_predicates)
+
+        self.observed_objects = list(detected_objects or [])
+        self.observed_predicate_strings = list(predicates or [])
+        if detected_relationships is not None:
+            self.observed_relationships = list(detected_relationships)
+        self._refresh_observation_indices()
+
+        grounding_summary = self.llm_analyzer.analyze_grounding(
+            task_description=self.current_task,
+            abstract_goal=self.task_analysis.abstract_goal,
+            predicate_inventory=self.task_analysis.predicate_inventory,
+            action_schemas=self.task_analysis.action_schemas,
+            observed_objects=self.observed_objects,
+            observed_relationships=self.observed_relationships,
+            predicates=self.observed_predicate_strings,
+            environment_image=image,
+        )
+        if not grounding_summary.grounded_predicates:
+            grounding_summary.grounded_predicates = list(self.observed_predicate_strings)
+
+        self.task_analysis.grounding_summary = grounding_summary
+        await self._rebuild_pddl_from_analysis(include_grounding=True)
+
+        validation = await self._validate_representation()
+        self._record_validation(validation)
+
+        goal_found = sorted(self.goal_object_types - set(grounding_summary.missing_references))
+        goal_missing = sorted(set(grounding_summary.missing_references))
+
+        self.last_update_observations += len(self.observed_objects)
+        self.domain_version += 1
+
+        return {
+            "objects_added": len(set(grounding_summary.observed_object_ids) - previous_object_ids),
+            "new_predicates": sorted(set(grounding_summary.grounded_predicates) - previous_predicates),
+            "total_observations": self.last_update_observations,
+            "goal_objects_found": goal_found,
+            "goal_objects_missing": goal_missing,
+            "grounding_complete": not goal_missing,
+            "validation_valid": validation["valid"],
+        }
+
+    async def repair_representation(
+        self,
+        failure_context: Dict[str, Any],
+        layer: str,
+    ) -> Dict[str, Any]:
+        """Repair a representation layer and rebuild dependent layers.
+
+        Args:
+            failure_context: Structured failure context from validation or planning.
+            layer: One of `actions`, `predicates`, or `goal`.
+
+        Returns:
+            Repair record with validation results.
+        """
+
+        if self.task_analysis is None or self.current_task is None:
+            raise RuntimeError("No task analysis is available to repair.")
+        if layer not in REPAIR_LAYER_ORDER:
+            raise ValueError(f"Unsupported repair layer: {layer}")
+
+        prompt_key = {
+            "actions": "repair_actions_prompt",
+            "predicates": "repair_predicates_prompt",
+            "goal": "repair_goal_prompt",
+        }[layer]
+
+        payload = self._request_repair_json(
+            template_key=prompt_key,
+            failure_context=failure_context,
+        )
+
+        if layer == "actions":
+            self.task_analysis.action_schemas = self._normalize_action_schema_library(ActionSchemaLibrary(
+                actions=self._normalize_actions(payload.get("actions")),
+                planning_notes=self._as_string_list(payload.get("repair_notes")),
+            ))
+        elif layer == "predicates":
+            self.task_analysis.predicate_inventory = PredicateInventory(
+                predicates=self._as_string_list(payload.get("predicates")),
+                selection_rationale=self._as_string_list(payload.get("selection_rationale")),
+                omitted_predicates=self._as_string_list(payload.get("omitted_predicates")),
+            )
+            self.global_predicates = self._extract_global_predicates(
+                self.task_analysis.predicate_inventory.predicates
+            )
+            self.task_analysis.action_schemas = self.llm_analyzer.analyze_actions(
+                task_description=self.current_task,
+                abstract_goal=self.task_analysis.abstract_goal,
+                predicate_inventory=self.task_analysis.predicate_inventory,
+                observed_objects=self.observed_objects,
+                observed_relationships=self.observed_relationships,
+            )
+            self.task_analysis.action_schemas = self._normalize_action_schema_library(
+                self.task_analysis.action_schemas
+            )
+        else:
+            self.task_analysis.abstract_goal = AbstractGoal(
+                summary=str(payload.get("summary", "")).strip(),
+                goal_literals=self._as_string_list(payload.get("goal_literals")),
+                goal_objects=self._as_string_list(payload.get("goal_objects")),
+                success_checks=self._as_string_list(payload.get("success_checks")),
+            )
+            self.goal_object_types = set(self.task_analysis.goal_object_references())
+            self.task_analysis.predicate_inventory = self.llm_analyzer.analyze_predicates(
+                task_description=self.current_task,
+                abstract_goal=self.task_analysis.abstract_goal,
+                observed_objects=self.observed_objects,
+                observed_relationships=self.observed_relationships,
+            )
+            self.global_predicates = self._extract_global_predicates(
+                self.task_analysis.predicate_inventory.predicates
+            )
+            self.task_analysis.action_schemas = self.llm_analyzer.analyze_actions(
+                task_description=self.current_task,
+                abstract_goal=self.task_analysis.abstract_goal,
+                predicate_inventory=self.task_analysis.predicate_inventory,
+                observed_objects=self.observed_objects,
+                observed_relationships=self.observed_relationships,
+            )
+            self.task_analysis.action_schemas = self._normalize_action_schema_library(
+                self.task_analysis.action_schemas
+            )
+
+        if self.observed_objects:
+            self.task_analysis.grounding_summary = self.llm_analyzer.analyze_grounding(
+                task_description=self.current_task,
+                abstract_goal=self.task_analysis.abstract_goal,
+                predicate_inventory=self.task_analysis.predicate_inventory,
+                action_schemas=self.task_analysis.action_schemas,
+                observed_objects=self.observed_objects,
+                observed_relationships=self.observed_relationships,
+                predicates=self.observed_predicate_strings,
+            )
+            if not self.task_analysis.grounding_summary.grounded_predicates:
+                self.task_analysis.grounding_summary.grounded_predicates = list(
+                    self.observed_predicate_strings
+                )
+
+        await self._rebuild_pddl_from_analysis(include_grounding=bool(self.observed_objects))
+        validation = await self._validate_representation()
+        repair_record = {
+            "layer": layer,
+            "failure_context": failure_context,
+            "validation": validation,
+        }
+        self._record_validation(validation)
+        self.task_analysis.diagnostics.setdefault("repair_history", []).append(repair_record)
+        self.domain_version += 1
+        return repair_record
 
     async def initialize_from_task(
         self,
         task_description: str,
-        environment_image: Optional[Union[np.ndarray, Image.Image, str, Path]] = None
+        environment_image: Optional[Union[np.ndarray, Image.Image, str, Path]] = None,
     ) -> TaskAnalysis:
         """
-        Initialize PDDL domain from task description.
+            Compatibility wrapper for staged representation building.
 
-        Performs LLM-based analysis to predict required predicates, actions,
-        and object types, then initializes the domain accordingly.
+            Performs LLM-based analysis to predict required predicates, actions,
+            and object types, then initializes the domain accordingly.
 
-        Args:
-            task_description: Natural language task
-            environment_image: Optional environment image for context
+            Args:
+                task_description: Natural language task
+                environment_image: Optional environment image for context
 
-        Returns:
-            TaskAnalysis with predicted requirements
+            Returns:
+                TaskAnalysis with predicted requirements
         """
         self.current_task = task_description
 
@@ -264,6 +427,27 @@ class PDDLDomainMaintainer:
 
         return self.task_analysis
 
+    async def initialize_from_layered_artifact(self, artifact: LayeredDomainArtifact) -> TaskAnalysis:
+        """
+        Initialize PDDL domain from a LayeredDomainArtifact produced by LayeredDomainGenerator.
+
+        Converts the artifact to a TaskAnalysis via the bridge method and then runs the
+        existing _initialize_domain_from_analysis() write path unchanged.
+
+        Args:
+            artifact: Output of LayeredDomainGenerator.generate_domain()
+
+        Returns:
+            TaskAnalysis (backward-compatible with callers expecting this type)
+        """
+        self.current_task = artifact.task_description
+        self.task_analysis = artifact.to_task_analysis()
+        self.goal_object_types = set(self.task_analysis.goal_objects)
+        self._l5_artifact = artifact.l5  # stash for use in generate_pddl_files
+        await self._initialize_domain_from_analysis()
+        self.domain_version += 1
+        return self.task_analysis
+
     async def _initialize_domain_from_analysis(self) -> None:
         """Initialize PDDL domain based on task analysis."""
         if not self.task_analysis:
@@ -281,7 +465,9 @@ class PDDLDomainMaintainer:
 
         # Add predicted predicates
         # First, infer parameter counts from action definitions
-        predicate_param_counts = self._infer_predicate_arities_from_actions()
+        predicate_param_counts = self._infer_predicate_arities_from_actions(
+            self.task_analysis.required_actions
+        )
 
         normalized_predicates: List[str] = []
         seen_normalized: Set[str] = set()
@@ -370,429 +556,163 @@ class PDDLDomainMaintainer:
 
     async def update_from_observations(
         self,
-        detected_objects: List[Dict],
+        detected_objects: List[Dict[str, Any]],
         detected_relationships: Optional[List[str]] = None,
-        predicates: Optional[List[str]] = None
-    ) -> Dict[str, any]:
-        """
-        Update domain based on new observations.
+        predicates: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Compatibility wrapper for grounding refresh."""
 
-        Adds newly observed object types and updates the problem state.
-        May trigger domain refinement if significant gaps are detected.
-
-        Args:
-            detected_objects: List of detected objects with types and properties
-            detected_relationships: Optional spatial relationships
-            predicates: Optional list of predicate strings (e.g., ["on bottle_1 table", "graspable cup_1"])
-
-        Returns:
-            Dict with update statistics
-        """
-        if detected_relationships is None:
-            detected_relationships = []
-        if predicates is None:
-            predicates = []
-
-        new_object_types = set()
-        new_predicates = set()
-        objects_added = 0
-
-        # Process each detected object
-        for obj in detected_objects:
-            raw_obj_type = obj.get("object_type", "unknown")
-            obj_id = obj.get("object_id", "unknown")
-
-            # Sanitize object type name for PDDL
-            # Map raw descriptive name to valid PDDL identifier
-            if raw_obj_type not in self._type_name_mapping:
-                sanitized_type = sanitize_pddl_name(raw_obj_type)
-                self._type_name_mapping[raw_obj_type] = sanitized_type
-
-            # Use base 'object' type for STRIPS (no typing)
-            obj_type = "object"
-
-            # Add object instance to problem
-            if obj_id not in self.pddl.object_instances:
-                await self.pddl.add_object_instance_async(obj_id, obj_type)
-                objects_added += 1
-
-        # Add predicates from top-level predicates list
-        for pred_str in predicates:
-            # Parse "on bottle_1 counter_2" -> predicate="on", args=["bottle_1", "counter_2"]
-            parts = pred_str.split()
-            if len(parts) >= 2:
-                predicate_name = parts[0]
-                args = parts[1:]
-
-                # Validate that all referenced objects exist in :objects section
-                # Skip predicates that reference non-existent objects
-                all_objects_exist = all(obj_name in self.pddl.object_instances for obj_name in args)
-                if not all_objects_exist:
-                    missing_objs = [obj for obj in args if obj not in self.pddl.object_instances]
-                    print(f"Skipping predicate '{pred_str}' - references non-existent objects: {missing_objs}")
-                    continue
-
-                # Track observed predicates
-                if predicate_name not in self.observed_predicates:
-                    new_predicates.add(predicate_name)
-                    self.observed_predicates.add(predicate_name)
-
-                # Add to initial state
-                try:
-                    await self.pddl.add_initial_literal_async(
-                        predicate_name,
-                        args,
-                        negated=False
-                    )
-                except ValueError:
-                    # Predicate not in domain - this indicates domain incompleteness
-                    pass
-
-        self.last_update_observations += len(detected_objects)
-
-        # Note: With STRIPS (no typing), we don't track object types
-        return {
-            "objects_added": objects_added,
-            "new_predicates": list(new_predicates),
-            "total_observations": self.last_update_observations
-        }
-
-    async def refine_domain_from_observations(
-        self,
-        detected_objects: List[Dict],
-        detected_relationships: List[str]
-    ) -> None:
-        """
-        Refine domain based on accumulated observations.
-
-        Re-analyzes the task in context of what we've actually observed,
-        potentially adding new predicates or actions.
-
-        Args:
-            detected_objects: All currently detected objects
-            detected_relationships: Current spatial relationships
-        """
-        if not self.current_task:
-            return
-
-        # Re-analyze task with observations
-        refined_analysis = self.llm_analyzer.analyze_task(
-            task_description=self.current_task,
-            observed_objects=detected_objects,
-            observed_relationships=detected_relationships,
-            timeout=15.0
+        return await self.ground_representation(
+            detected_objects=detected_objects,
+            predicates=predicates,
+            detected_relationships=detected_relationships,
         )
-
-        # Add any new predicates discovered
-        for predicate_name in refined_analysis.relevant_predicates:
-            if predicate_name not in self.pddl.predicates:
-                await self.pddl.add_predicate_async(
-                    predicate_name,
-                    [("obj", "object")]
-                )
-
-        # Update task analysis
-        self.task_analysis = refined_analysis
-        self.domain_version += 1
 
     async def is_domain_complete(self) -> bool:
-        """
-        Check if domain is complete for the current task.
+        """Return whether the goal, predicate, and action layers validate."""
 
-        Returns:
-            True if all required predicates and actions are defined
-        """
-        if not self.task_analysis:
+        if self.task_analysis is None:
             return False
-
-        # Check if all predicted predicates are in domain
-        for predicate in self.task_analysis.relevant_predicates:
-            pred_name, _, _ = self._normalize_predicate_signature(predicate)
-            if pred_name and pred_name not in self.pddl.predicates:
-                return False
-
-        # Check if we have any actions
-        all_actions = await self.pddl.get_all_actions()
-        if not all_actions:
-            return False
-
-        return True
+        validation = await self._validate_representation()
+        return validation["layer_validity"]["goal"] and validation["layer_validity"]["predicates"] and validation[
+            "layer_validity"
+        ]["actions"]
 
     async def validate_and_fix_action_predicates(self) -> Dict[str, List[str]]:
-        """
-        Validate that all predicates used in actions are defined in the domain.
+        """Ensure action predicates are defined in the current inventory."""
 
-        Automatically adds missing predicates to the domain.
+        if self.task_analysis is None:
+            return {"missing_predicates": [], "invalid_actions": []}
 
-        Returns:
-            Dict with 'missing_predicates' (list of predicates that were added)
-                  and 'invalid_actions' (list of actions that couldn't be parsed)
+        missing_predicates: List[str] = []
+        invalid_actions: List[str] = []
+        defined = {
+            self._normalize_predicate_signature(sig)[0]
+            for sig in self.task_analysis.predicate_inventory.predicates
+            if self._normalize_predicate_signature(sig)[0]
+        }
+        inferred_arities = self._infer_action_predicate_arities(self.task_analysis.action_schemas.actions)
 
-        Example:
-            >>> stats = await maintainer.validate_and_fix_action_predicates()
-            >>> print(f"Added {len(stats['missing_predicates'])} missing predicates")
-            >>> print(f"Predicates added: {stats['missing_predicates']}")
-        """
-        missing_predicates = []
-        invalid_actions = []
-
-        # Get all actions from the domain
-        all_actions = await self.pddl.get_all_actions()
-
-        for action_name, action in all_actions.items():
+        for action in self.task_analysis.action_schemas.actions:
             try:
-                # Extract predicates from preconditions
-                precond_predicates = self._extract_predicates_from_formula(action.precondition)
-
-                # Extract predicates from effects
-                effect_predicates = self._extract_predicates_from_formula(action.effect)
-
-                # Combine all predicates used in this action
-                all_action_predicates = precond_predicates | effect_predicates
-
-                # Check if each predicate is defined in the domain
-                for pred_name in all_action_predicates:
-                    if pred_name not in self.pddl.predicates:
-                        if pred_name not in missing_predicates:
-                            missing_predicates.append(pred_name)
-
-                            # Add the missing predicate to the domain
-                            # Use a generic signature (single object parameter)
-                            await self.pddl.add_predicate_async(
-                                pred_name,
-                                [("obj", "object")]
-                            )
-                            print(f"  ℹ Added missing predicate: {pred_name}")
-
-            except Exception as e:
-                print(f"  ⚠ Failed to parse action '{action_name}': {e}")
-                invalid_actions.append(action_name)
+                used = self._extract_predicate_usages(action.get("precondition", "")) | self._extract_predicate_usages(
+                    action.get("effect", "")
+                )
+                for pred_name, arity in used:
+                    if pred_name in defined:
+                        continue
+                    params = " ".join(f"?obj{i+1}" for i in range(arity))
+                    signature = f"({pred_name} {params})".strip()
+                    signature = signature.replace(" )", ")")
+                    self.task_analysis.predicate_inventory.predicates.append(signature)
+                    defined.add(pred_name)
+                    missing_predicates.append(signature)
+            except Exception:
+                invalid_actions.append(str(action.get("name", "unknown")))
 
         if missing_predicates:
-            print(f"✓ Validated and added {len(missing_predicates)} missing predicates")
-        else:
-            print("✓ All action predicates are properly defined")
+            self.global_predicates = self._extract_global_predicates(
+                self.task_analysis.predicate_inventory.predicates
+            )
+            await self._rebuild_pddl_from_analysis(include_grounding=bool(self.observed_objects))
 
-        return {
-            "missing_predicates": missing_predicates,
-            "invalid_actions": invalid_actions
-        }
+        _ = inferred_arities
+        return {"missing_predicates": missing_predicates, "invalid_actions": invalid_actions}
 
-    def _infer_predicate_arities_from_actions(self) -> Dict[str, int]:
-        """
-        Infer the number of parameters (arity) for each predicate by analyzing
-        how they're used in action preconditions and effects.
+    async def set_goal_from_task_analysis(self) -> None:
+        """Populate the PDDL goal from the staged analysis."""
 
-        Returns:
-            Dict mapping predicate names to their parameter counts
-        """
-        import re
-        predicate_arities: Dict[str, int] = {}
+        if self.task_analysis is None:
+            return
 
-        if not self.task_analysis or not self.task_analysis.required_actions:
-            return predicate_arities
+        goal_formulas = self._resolved_goal_formulas()
+        await self.pddl.clear_goal_state_async()
 
-        for idx, action_def in enumerate(self.task_analysis.required_actions):
-            if not isinstance(action_def, dict):
-                raise ValueError(
-                    f"Invalid required_actions[{idx}] type: expected dict, got {type(action_def).__name__}"
-                )
-            # Extract predicates from precondition and effect
-            precondition = action_def.get("precondition", "")
-            effect = action_def.get("effect", "")
+        for formula in goal_formulas:
+            parsed = self._parse_literal_formula(formula)
+            if parsed is None:
+                await self.pddl.add_goal_formula_async(formula)
+                continue
+            predicate, arguments, negated = parsed
+            if predicate not in self.pddl.predicates:
+                await self.pddl.add_goal_formula_async(formula)
+                continue
+            await self.pddl.add_goal_literal_async(predicate, arguments, negated=negated)
 
-            for formula in [precondition, effect]:
-                if not formula:
-                    continue
+    async def refine_domain_from_error(
+        self,
+        error_message: str,
+        current_domain_pddl: Optional[str] = None,
+        current_problem_pddl: Optional[str] = None,
+    ) -> None:
+        """Compatibility wrapper for targeted repair from error text."""
 
-                # Find all predicate usages like (predicate ?x ?y)
-                # Pattern matches: (predicate_name param1 param2 ...)
-                pattern = r'\(([a-zA-Z][a-zA-Z0-9_-]*)\s+([^)]+)\)'
-                matches = re.findall(pattern, formula)
-
-                for pred_name, params_str in matches:
-                    # Skip logical operators
-                    if pred_name in {'and', 'or', 'not', 'forall', 'exists', 'when'}:
-                        continue
-
-                    # Count parameters (split on whitespace)
-                    params = params_str.split()
-                    param_count = len(params)
-
-                    # Store the maximum arity seen for this predicate
-                    if pred_name in predicate_arities:
-                        predicate_arities[pred_name] = max(predicate_arities[pred_name], param_count)
-                    else:
-                        predicate_arities[pred_name] = param_count
-
-                # Also handle zero-parameter predicates like (empty-hand)
-                pattern_zero = r'\(([a-zA-Z][a-zA-Z0-9_-]*)\)'
-                matches_zero = re.findall(pattern_zero, formula)
-                for pred_name in matches_zero:
-                    if pred_name in {'and', 'or', 'not', 'forall', 'exists', 'when'}:
-                        continue
-                    # Only set to 0 if we haven't seen it with parameters
-                    if pred_name not in predicate_arities:
-                        predicate_arities[pred_name] = 0
-
-        return predicate_arities
-
-    @staticmethod
-    def _normalize_predicate_signature(
-        predicate_str: str,
-    ) -> Tuple[Optional[str], List[Tuple[str, str]], str]:
-        """
-        Strip type annotations from a predicate signature and sanitize it for PDDL.
-
-        Args:
-            predicate_str: Raw predicate string (may include parentheses and types).
-
-        Returns:
-            (predicate_name, parameter_defs, normalized_display)
-        """
-        if not predicate_str:
-            return None, [], ""
-
-        tokens = re.findall(r"[^\s()]+", predicate_str)
-        if not tokens:
-            return None, [], ""
-
-        predicate_name = sanitize_pddl_name(tokens[0])
-        if not predicate_name:
-            return None, [], ""
-
-        variable_tokens = [tok for tok in tokens[1:] if tok.startswith("?")]
-        parameter_defs: List[Tuple[str, str]] = []
-        used_param_names: Set[str] = set()
-
-        for idx, var_token in enumerate(variable_tokens):
-            raw_var = var_token.lstrip("?") or f"param{idx+1}"
-            clean_name = sanitize_pddl_name(raw_var)
-            if not clean_name:
-                clean_name = f"param{idx+1}"
-
-            while clean_name in used_param_names:
-                clean_name = f"{clean_name}_{idx+1}"
-
-            used_param_names.add(clean_name)
-            parameter_defs.append((clean_name, "object"))
-
-        normalized_display = (
-            f"({predicate_name} {' '.join(variable_tokens)})"
-            if variable_tokens
-            else predicate_name
+        validation = await self._validate_representation()
+        layer = self.classify_failure_layer(error_message=error_message, validation=validation)
+        await self.repair_representation(
+            failure_context={
+                "error_message": error_message,
+                "current_domain_pddl": current_domain_pddl,
+                "current_problem_pddl": current_problem_pddl,
+                "validation": validation,
+            },
+            layer=layer,
         )
 
-        return predicate_name, parameter_defs, normalized_display
+    async def update_object_tracker_from_domain(self, object_tracker: Any) -> None:
+        """Update tracker predicates and actions from the staged representation."""
 
-    def _extract_predicates_from_formula(self, formula: str) -> Set[str]:
-        """
-        Extract predicate names from a PDDL formula.
-
-        Parses formulas like:
-          "(and (graspable ?obj) (empty-hand))"
-        And extracts: {"graspable", "empty-hand"}
-
-        Args:
-            formula: PDDL formula string (precondition or effect)
-
-        Returns:
-            Set of predicate names used in the formula
-        """
-        if not formula:
-            return set()
-
-        predicates = set()
-
-        # Pattern to match predicate names in PDDL formulas
-        # Matches: (predicate-name ...) but excludes logical operators
-        import re
-
-        # Remove 'not' wrapper to get the actual predicate
-        # e.g., (not (holding ?obj)) -> (holding ?obj)
-        formula_clean = re.sub(r'\(not\s+', '(', formula)
-
-        # Find all predicate-like patterns: (word ...)
-        # Exclude logical operators: and, or, not
-        pattern = r'\(([a-zA-Z][a-zA-Z0-9_-]*)\s'
-        matches = re.findall(pattern, formula_clean)
-
-        logical_operators = {'and', 'or', 'not', 'forall', 'exists', 'when'}
-
-        for match in matches:
-            if match not in logical_operators:
-                predicates.add(match)
-
-        # Also handle predicates without parameters like (empty-hand)
-        pattern_no_params = r'\(([a-zA-Z][a-zA-Z0-9_-]*)\)'
-        matches_no_params = re.findall(pattern_no_params, formula_clean)
-
-        for match in matches_no_params:
-            if match not in logical_operators:
-                predicates.add(match)
-
-        return predicates
-
-    def _match_goal_objects(self, observed_types: Set[str]) -> Set[str]:
-        """
-        Match goal object types against observed types with fuzzy matching.
-
-        Handles cases like "red_mug" (goal) matching "mug" (observed).
-        Returns the set of goal object types that have been matched.
-
-        Args:
-            observed_types: Set of observed object types
-
-        Returns:
-            Set of goal object types that match observed types
-        """
-        matched = set()
-
-        for goal_type in self.goal_object_types:
-            # Exact match
-            if goal_type in observed_types:
-                matched.add(goal_type)
-                continue
-
-            # Fuzzy match: check if observed type is a substring of goal type
-            # e.g., "mug" matches "red_mug"
-            for obs_type in observed_types:
-                if obs_type in goal_type or goal_type in obs_type:
-                    matched.add(goal_type)
-                    break
-
-        return matched
+        if self.task_analysis is None:
+            return
+        object_tracker.set_pddl_predicates(self.task_analysis.predicate_signatures())
+        object_tracker.set_pddl_actions(
+            [action.get("name", "unknown") for action in self.task_analysis.action_context()]
+        )
 
     async def are_goal_objects_observed(self) -> bool:
-        """
-        Check if all goal-relevant objects have been observed.
+        """Return whether all symbolic goal references are grounded or matched."""
 
-        Returns:
-            True if all goal objects have been seen
-        """
-        matched = self._match_goal_objects(self.observed_object_types)
-        return len(matched) == len(self.goal_object_types)
+        return len(await self.get_missing_goal_objects()) == 0
 
     async def get_missing_goal_objects(self) -> List[str]:
-        """
-        Get list of goal objects that haven't been observed yet.
+        """Return goal references that are not grounded yet."""
 
-        Returns:
-            List of object types mentioned in goal but not yet observed
-        """
-        matched = self._match_goal_objects(self.observed_object_types)
-        return list(self.goal_object_types - matched)
+        if self.task_analysis is None:
+            return []
+        missing = set(self.task_analysis.grounding_summary.missing_references)
+        if missing:
+            return sorted(missing)
 
-    async def get_domain_statistics(self) -> Dict:
-        """
-        Get statistics about current domain state.
+        observed_labels = {
+            sanitize_pddl_name(obj.get("object_id", ""))
+            for obj in self.observed_objects
+            if obj.get("object_id")
+        } | {
+            sanitize_pddl_name(obj.get("object_type", ""))
+            for obj in self.observed_objects
+            if obj.get("object_type")
+        }
 
-        Returns:
-            Dict with domain completeness metrics
-        """
+        unresolved = []
+        for goal_object in self.task_analysis.goal_object_references():
+            goal_key = sanitize_pddl_name(goal_object)
+            bindings = self.task_analysis.grounding_summary.object_bindings.get(goal_object, [])
+            if bindings:
+                continue
+            if any(goal_key in label or label in goal_key for label in observed_labels if label):
+                continue
+            unresolved.append(goal_object)
+        return sorted(set(unresolved))
+
+    async def get_domain_statistics(self) -> Dict[str, Any]:
+        """Return planning representation statistics."""
+
         domain_snapshot = await self.pddl.get_domain_snapshot()
         problem_snapshot = await self.pddl.get_problem_snapshot()
-
+        validation = await self._validate_representation()
+        goal_total = len(self.goal_object_types)
+        goal_missing = await self.get_missing_goal_objects()
+        goal_observed = max(goal_total - len(goal_missing), 0)
         return {
             "domain_version": self.domain_version,
             "task": self.current_task,
@@ -801,472 +721,574 @@ class PDDLDomainMaintainer:
             "object_types_observed": len(self.observed_object_types),
             "object_instances": len(problem_snapshot["object_instances"]),
             "initial_literals": len(problem_snapshot["initial_literals"]),
-            "goal_literals": len(problem_snapshot["goal_literals"]),
-            "goal_objects_total": len(self.goal_object_types),
-            "goal_objects_observed": len(self.goal_object_types.intersection(self.observed_object_types)),
-            "domain_complete": await self.is_domain_complete(),
-            "goals_observable": await self.are_goal_objects_observed()
+            "goal_literals": len(problem_snapshot["goal_literals"]) + len(self.pddl.goal_formulas),
+            "goal_objects_total": goal_total,
+            "goal_objects_observed": goal_observed,
+            "domain_complete": validation["layer_validity"]["goal"]
+            and validation["layer_validity"]["predicates"]
+            and validation["layer_validity"]["actions"],
+            "goals_observable": len(goal_missing) == 0,
+            "validation": validation,
         }
 
-    def _normalize_goal_predicate(self, pred: str) -> str:
-        """
-        Normalize a goal predicate to ensure proper PDDL syntax with parentheses.
+    def get_global_predicates(self) -> List[str]:
+        """Return zero-arity predicates treated as global state."""
 
-        Handles various input formats:
-        - "on cup table" -> "(on cup table)"
-        - "(on cup table)" -> "(on cup table)" (unchanged)
-        - "on(cup, table)" -> "(on cup table)"
-        - "exists (?x - object) (holding ?x)" -> "(exists (?x - object) (holding ?x))"
+        return sorted(self.global_predicates)
+
+    def set_global_predicates(self, predicates: List[str]) -> None:
+        """Override the tracked global predicates."""
+
+        self.global_predicates = set(predicates)
+
+    def clear_global_predicates(self) -> None:
+        """Clear tracked global predicates."""
+
+        self.global_predicates.clear()
+
+    def classify_failure_layer(
+        self,
+        error_message: Optional[str],
+        validation: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Classify the lowest likely failing abstraction layer.
 
         Args:
-            pred: Goal predicate string
+            error_message: Planner error, if any.
+            validation: Optional precomputed validation result.
 
         Returns:
-            Normalized predicate with proper PDDL syntax
+            Repair layer name.
         """
-        import re
 
-        pred = pred.strip()
+        validation = validation or {}
+        layer_validity = validation.get("layer_validity") or {}
+        if layer_validity and not layer_validity.get("actions", True):
+            return "actions"
+        if layer_validity and not layer_validity.get("predicates", True):
+            return "predicates"
+        if layer_validity and not layer_validity.get("goal", True):
+            return "goal"
 
-        # Already has proper PDDL syntax (starts with parenthesis or quantifier)
-        if pred.startswith('(') or pred.startswith('exists') or pred.startswith('forall'):
-            return pred
+        error = (error_message or "").lower()
+        if any(token in error for token in ["precondition", "effect", "action", "unsolvable", "no plan", "empty plan"]):
+            return "actions"
+        if any(token in error for token in ["predicate", "arity", "undefined predicate", "symbol"]):
+            return "predicates"
+        return "goal"
 
-        # Remove commas if present (e.g., "on(cup, table)" -> "on(cup table)")
-        pred = pred.replace(',', ' ')
-
-        # Handle format: "predicate(args)" -> "(predicate args)"
-        if '(' in pred and ')' in pred:
-            # Extract predicate name and arguments
-            match = re.match(r'([a-zA-Z][a-zA-Z0-9_-]*)\s*\((.*)\)', pred)
-            if match:
-                pred_name = match.group(1)
-                args = match.group(2).strip()
-                # Clean up extra spaces
-                args = re.sub(r'\s+', ' ', args)
-                return f"({pred_name} {args})" if args else f"({pred_name})"
-
-        # Handle format: "predicate arg1 arg2" -> "(predicate arg1 arg2)"
-        if not pred.startswith('('):
-            # Clean up extra spaces
-            pred = re.sub(r'\s+', ' ', pred)
-            return f"({pred})"
-
-        return pred
-
-    async def set_goal_from_task_analysis(self) -> None:
-        """
-        Set goal state based on task analysis.
-
-        Uses LLM-predicted goal predicates to populate PDDL goal state.
-        Normalizes predicates to ensure proper PDDL syntax with parentheses.
-        """
-        if not self.task_analysis:
-            print("⚠ No task analysis available - cannot set goals")
+    async def _rebuild_pddl_from_analysis(self, include_grounding: bool) -> None:
+        if self.task_analysis is None:
             return
 
-        print(f"  • Setting goals from task analysis...")
-        print(f"    Task: {self.current_task}")
-        print(f"    Goal predicates: {self.task_analysis.goal_predicates}")
+        self._reset_pddl()
 
-        # Clear existing goals
-        await self.pddl.clear_goal_state_async()
+        for signature in self.task_analysis.predicate_inventory.predicates:
+            pred_name, params, _ = self._normalize_predicate_signature(signature)
+            if pred_name is None:
+                continue
+            await self.pddl.add_predicate_async(pred_name, params)
 
-        if not self.task_analysis.goal_predicates:
-            print("⚠ No goal predicates in task analysis - problem will have empty goals!")
-            print("   This usually means the LLM failed to extract goals from the task description")
-            return
+        for pred_name in self.global_predicates:
+            if pred_name not in self.pddl.predicates:
+                await self.pddl.add_predicate_async(pred_name, [])
 
-        # Normalize and add goal predicates
-        goals_added = 0
-        for goal_pred in self.task_analysis.goal_predicates:
-            try:
-                # Normalize to ensure proper PDDL syntax
-                normalized_pred = self._normalize_goal_predicate(goal_pred)
+        for action in self.task_analysis.action_schemas.actions:
+            name = sanitize_pddl_name(str(action.get("name", "")))
+            if not name:
+                continue
+            parameters = self._normalize_action_parameters(action.get("parameters") or [])
+            precondition = sanitize_pddl_formula(str(action.get("precondition", "(and)")) or "(and)")
+            precondition = self._strip_negative_preconditions(precondition)
+            self.pddl.add_llm_generated_action(
+                name=name,
+                parameters=parameters,
+                precondition=precondition,
+                effect=sanitize_pddl_formula(str(action.get("effect", "(and)")) or "(and)"),
+                description=str(action.get("description", "")).strip() or None,
+            )
 
-                # Show if normalization changed the predicate
-                if normalized_pred != goal_pred:
-                    print(f"    ℹ Normalized: '{goal_pred}' → '{normalized_pred}'")
+        if include_grounding:
+            for obj in self.observed_objects:
+                obj_id = obj.get("object_id")
+                if obj_id and obj_id not in self.pddl.object_instances:
+                    await self.pddl.add_object_instance_async(str(obj_id), "object")
 
-                await self.pddl.add_goal_formula_async(normalized_pred)
-                goals_added += 1
-                print(f"    ✓ Added goal formula: {normalized_pred}")
-            except Exception as e:
-                print(f"    ⚠ Failed to add goal predicate '{goal_pred}': {e}")
+            for pred_name in self.global_predicates:
+                if pred_name in self.pddl.predicates:
+                    await self.pddl.add_initial_literal_async(pred_name, [])
 
-        print(f"  ✓ Added {goals_added} goal formula(s)")
+            grounded_predicates = (
+                self.task_analysis.grounding_summary.grounded_predicates or self.observed_predicate_strings
+            )
+            for predicate_str in grounded_predicates:
+                parsed = self._parse_predicate_instance(predicate_str)
+                if parsed is None:
+                    continue
+                predicate, arguments, negated = parsed
+                if predicate not in self.pddl.predicates:
+                    continue
+                if any(arg not in self.pddl.object_instances for arg in arguments):
+                    continue
+                await self.pddl.add_initial_literal_async(predicate, arguments, negated=negated)
 
-    async def refine_domain_from_error(
-        self,
-        error_message: str,
-        current_domain_pddl: Optional[str] = None,
-        current_problem_pddl: Optional[str] = None
-    ) -> None:
-        """
-        Refine the PDDL domain based on a planning error.
+        await self.set_goal_from_task_analysis()
 
-        Uses the LLM to analyze the error and fix domain issues like:
-        - Predicate arity mismatches
-        - Missing predicates
-        - Action definition errors
-        - Type mismatches
-        - Goal object name mismatches with detected objects
+    async def _validate_representation(self) -> Dict[str, Any]:
+        if self.task_analysis is None:
+            return {
+                "valid": False,
+                "layer_validity": {"goal": False, "predicates": False, "actions": False, "grounding": False},
+                "issues": [{"layer": "goal", "message": "No task analysis has been built."}],
+                "warnings": [],
+                "suggested_repair_layer": "goal",
+            }
 
-        Args:
-            error_message: The error message from the planner
-            current_domain_pddl: Optional current domain PDDL for context
-            current_problem_pddl: Optional current problem PDDL for context (includes detected objects)
-        """
-        if not self.llm_analyzer:
-            print("⚠ No LLM analyzer available for refinement")
-            return
+        inventory_names = {
+            name
+            for name, _, _ in (
+                self._normalize_predicate_signature(signature)
+                for signature in self.task_analysis.predicate_inventory.predicates
+            )
+            if name
+        }
+        action_effects = set()
+        action_usages = set()
+        issues: List[Dict[str, str]] = []
+        warnings: List[str] = []
 
-        print("  • Analyzing planning error...")
-
-        # Create refinement prompt
-        task_desc = self.current_task if self.current_task else 'Unknown'
-
-        # Extract goal objects from task analysis if available
-        goal_objects_str = ""
-        if self.task_analysis and self.task_analysis.goal_objects:
-            # Filter out None values that might have been incorrectly added
-            valid_goal_objects = [obj for obj in self.task_analysis.goal_objects if obj and obj != "None"]
-            if valid_goal_objects:
-                goal_objects_str = f"\nExpected Goal Objects (from task): {', '.join(valid_goal_objects)}"
-
-        # Add problem file context and check if objects section is empty
-        problem_context = ""
-        objects_section_empty = False
-        detected_objects_list = []
-
-        if current_problem_pddl:
-            # Check if :objects section is empty or missing
-            if ":objects" not in current_problem_pddl:
-                objects_section_empty = True
-                print("  ⚠ DEBUG: Problem file has NO :objects section")
+        goal_formulas = self._resolved_goal_formulas()
+        goal_predicate_names = set()
+        goal_object_names = set()
+        for formula in goal_formulas:
+            if any(token in formula for token in ["forall", "exists", "implies", "="]) or "?" in formula:
+                issues.append(
+                    {
+                        "layer": "goal",
+                        "message": f"Goal formula is not a grounded STRIPS literal: `{formula}`.",
+                    }
+                )
+                continue
+            parsed = self._parse_literal_formula(formula)
+            if parsed is not None:
+                predicate, arguments, _ = parsed
+                goal_predicate_names.add(predicate)
+                goal_object_names.update(arguments)
             else:
-                # Extract content between (:objects and next section or (:init
-                import re
-                objects_match = re.search(r'\(:objects\s*(.*?)\s*\)', current_problem_pddl, re.DOTALL)
-                if objects_match:
-                    objects_content = objects_match.group(1).strip()
-                    objects_section_empty = len(objects_content) == 0 or objects_content == ""
-                    if not objects_section_empty:
-                        # Extract object names for debugging
-                        detected_objects_list = re.findall(r'(\w+)\s*', objects_content)
-                        print(f"  ℹ DEBUG: Detected objects in problem file: {detected_objects_list}")
-                    else:
-                        print("  ⚠ DEBUG: :objects section exists but is EMPTY")
-                else:
-                    print("  ⚠ DEBUG: Could not parse :objects section")
+                goal_predicate_names |= {
+                    pred_name for pred_name, _ in self._extract_predicate_usages(formula)
+                }
 
-            problem_context = f"""
+        for goal_predicate in goal_predicate_names:
+            if goal_predicate not in inventory_names:
+                issues.append(
+                    {
+                        "layer": "predicates",
+                        "message": f"Goal predicate `{goal_predicate}` is not expressible by the predicate inventory.",
+                    }
+                )
 
-Current PDDL Problem File:
-{current_problem_pddl}
+        grounded_predicates = self.task_analysis.grounding_summary.grounded_predicates or self.observed_predicate_strings
+        grounded_names = {
+            parsed[0]
+            for parsed in (self._parse_predicate_instance(value) for value in grounded_predicates)
+            if parsed is not None
+        }
 
-Note: The problem file shows the detected objects (in :objects section) and the goal state (in :goal section).
-If the goal references objects that don't exist in :objects, this is the root cause of the failure.
-"""
-            if objects_section_empty:
-                problem_context += """
-⚠ WARNING: The :objects section appears to be EMPTY. This means NO objects were detected by the perception system.
-This is a PERCEPTION PROBLEM, not a domain problem. The object tracker needs to detect objects before planning can work.
-"""
-            elif detected_objects_list:
-                problem_context += f"""
-ℹ INFO: Detected {len(detected_objects_list)} object(s) in problem file: {', '.join(detected_objects_list)}
-"""
+        for action in self.task_analysis.action_schemas.actions:
+            action_name = str(action.get("name", "unknown"))
+            if "(not " in str(action.get("precondition", "")):
+                issues.append(
+                    {
+                        "layer": "actions",
+                        "message": f"Action `{action_name}` uses negative preconditions unsupported by the STRIPS solver backend.",
+                    }
+                )
+            try:
+                precondition_usages = self._extract_predicate_usages(action.get("precondition", ""))
+                effect_usages = self._extract_predicate_usages(action.get("effect", ""))
+            except Exception:
+                issues.append({"layer": "actions", "message": f"Action `{action_name}` could not be parsed."})
+                continue
 
-        # Add robot capabilities context
-        robot_context = ""
-        if self.robot_description:
-            robot_context = f"""
+            for pred_name, _ in precondition_usages | effect_usages:
+                action_usages.add(pred_name)
+                if pred_name not in inventory_names:
+                    issues.append(
+                        {
+                            "layer": "predicates",
+                            "message": f"Action `{action_name}` uses undefined predicate `{pred_name}`.",
+                        }
+                    )
+            for pred_name, _ in effect_usages:
+                action_effects.add(pred_name)
 
-ROBOT CAPABILITIES:
-{self.robot_description}
+        for goal_predicate in goal_predicate_names:
+            if goal_predicate not in action_effects and goal_predicate not in grounded_names:
+                issues.append(
+                    {
+                        "layer": "actions",
+                        "message": f"No grounded state or action effect can satisfy goal predicate `{goal_predicate}`.",
+                    }
+                )
 
-Note: Actions and predicates should be consistent with the robot's capabilities.
-"""
+        unused_predicates = sorted(inventory_names - goal_predicate_names - action_usages - grounded_names - self.global_predicates)
+        if unused_predicates:
+            warnings.append(f"Unused predicates: {', '.join(unused_predicates)}")
 
-        template = self._get_prompt_template("refinement_prompt")
-        refinement_prompt = render_prompt_template(
-            template,
+        grounding_complete = True
+        missing_goal_objects = await self.get_missing_goal_objects()
+        if self.observed_objects and missing_goal_objects:
+            grounding_complete = False
+            issues.append(
+                {
+                    "layer": "grounding",
+                    "message": f"Missing grounded object references: {', '.join(missing_goal_objects)}.",
+                }
+            )
+
+        observed_object_ids = {str(obj.get("object_id")) for obj in self.observed_objects if obj.get("object_id")}
+        if include_grounding_objects := bool(observed_object_ids):
+            for obj_name in goal_object_names:
+                if obj_name not in observed_object_ids and self.observed_objects:
+                    warnings.append(f"Goal references `{obj_name}` that is not a detected object ID.")
+        _ = include_grounding_objects
+
+        layer_validity = {
+            "goal": not any(issue["layer"] == "goal" for issue in issues),
+            "predicates": not any(issue["layer"] == "predicates" for issue in issues),
+            "actions": not any(issue["layer"] == "actions" for issue in issues),
+            "grounding": grounding_complete,
+        }
+        suggested_repair_layer = "goal"
+        for layer in REPAIR_LAYER_ORDER:
+            if not layer_validity[layer]:
+                suggested_repair_layer = layer
+                break
+
+        return {
+            "valid": layer_validity["goal"] and layer_validity["predicates"] and layer_validity["actions"] and grounding_complete,
+            "layer_validity": layer_validity,
+            "issues": issues,
+            "warnings": warnings,
+            "suggested_repair_layer": suggested_repair_layer,
+        }
+
+    def _request_repair_json(self, template_key: str, failure_context: Dict[str, Any]) -> Dict[str, Any]:
+        if self.task_analysis is None or self.current_task is None:
+            raise RuntimeError("No task analysis is available to repair.")
+
+        prompt = render_prompt_template(
+            self._get_prompt_template(template_key),
             {
-                "ERROR_MESSAGE": error_message,
-                "TASK_DESCRIPTION": task_desc,
-                "GOAL_OBJECTS_SECTION": goal_objects_str,
-                "ROBOT_CONTEXT_SECTION": robot_context,
-                "CURRENT_DOMAIN_PDDL": current_domain_pddl if current_domain_pddl else "Not available",
-                "PROBLEM_CONTEXT_SECTION": problem_context,
+                "TASK": self.current_task,
+                "FAILURE_CONTEXT_JSON": json.dumps(failure_context, indent=2, default=str),
+                "ABSTRACT_GOAL_JSON": json.dumps(self._goal_dict(), indent=2),
+                "PREDICATE_INVENTORY_JSON": json.dumps(self._predicate_inventory_dict(), indent=2),
+                "ACTION_SCHEMAS_JSON": json.dumps(self.task_analysis.action_schemas.actions, indent=2),
+                "GROUNDING_SUMMARY_JSON": json.dumps(self._grounding_summary_dict(), indent=2),
             },
         )
+        text = self.llm_analyzer._generate_content(content_parts=[prompt], timeout=30.0)
+        if not text:
+            raise RuntimeError(f"Repair prompt `{template_key}` returned an empty response.")
+        from .layered_domain_generator import _extract_json
+        payload = _extract_json(text)
+        if not isinstance(payload, dict):
+            raise ValueError(f"Expected JSON object from {template_key}")
+        return payload
 
+    def _goal_dict(self) -> Dict[str, Any]:
+        assert self.task_analysis is not None
+        return {
+            "summary": self.task_analysis.abstract_goal.summary,
+            "goal_literals": self.task_analysis.abstract_goal.goal_literals,
+            "goal_objects": self.task_analysis.abstract_goal.goal_objects,
+            "success_checks": self.task_analysis.abstract_goal.success_checks,
+        }
 
-        try:
-            # Get LLM's analysis and fix
-            # Use fast Flash model for quick PDDL debugging
-            # Increased timeout to 60s for complex domains
-            refinement_model = "gemini-robotics-er-1.5-preview"
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self.llm_analyzer.client.models.generate_content,
-                    model=refinement_model,
-                    contents=refinement_prompt,
-                    config={
-                        "response_mime_type": "application/json",
-                        "temperature": 0.1,
-                        "thinking_config": types.ThinkingConfig(thinking_budget=0),
-                    }
-                ),
-                timeout=60.0,
+    def _predicate_inventory_dict(self) -> Dict[str, Any]:
+        assert self.task_analysis is not None
+        return {
+            "predicates": self.task_analysis.predicate_inventory.predicates,
+            "selection_rationale": self.task_analysis.predicate_inventory.selection_rationale,
+            "omitted_predicates": self.task_analysis.predicate_inventory.omitted_predicates,
+        }
+
+    def _grounding_summary_dict(self) -> Dict[str, Any]:
+        assert self.task_analysis is not None
+        grounding = self.task_analysis.grounding_summary
+        return {
+            "object_bindings": grounding.object_bindings,
+            "grounded_goal_literals": grounding.grounded_goal_literals,
+            "grounded_predicates": grounding.grounded_predicates,
+            "available_skills": grounding.available_skills,
+            "missing_references": grounding.missing_references,
+            "observed_object_ids": grounding.observed_object_ids,
+        }
+
+    def _reset_pddl(self) -> None:
+        self.pddl.object_types.clear()
+        self.pddl.add_object_type("object")
+        self.pddl.predicates.clear()
+        self.pddl.predefined_actions.clear()
+        self.pddl.llm_generated_actions.clear()
+        self.pddl.object_instances.clear()
+        self.pddl.initial_literals.clear()
+        self.pddl.goal_literals.clear()
+        self.pddl.goal_formulas.clear()
+        self.pddl._domain_text_cache = None
+        self.pddl._problem_text_cache = None
+        self.pddl._cache_dirty = True
+
+    def _new_diagnostics(self) -> Dict[str, Any]:
+        return {
+            "validation_history": [],
+            "repair_history": [],
+            "llm_call_count": self.llm_analyzer.call_count,
+            "llm_elapsed_seconds": self.llm_analyzer.total_elapsed_seconds,
+        }
+
+    def _record_validation(self, validation: Dict[str, Any]) -> None:
+        if self.task_analysis is None:
+            return
+        self.task_analysis.diagnostics.setdefault("validation_history", []).append(validation)
+        self.task_analysis.diagnostics["last_validation"] = validation
+        self.task_analysis.diagnostics["llm_call_count"] = self.llm_analyzer.call_count
+        self.task_analysis.diagnostics["llm_elapsed_seconds"] = round(
+            self.llm_analyzer.total_elapsed_seconds, 3
+        )
+
+    def _refresh_observation_indices(self) -> None:
+        self.observed_object_types = {
+            sanitize_pddl_name(str(obj.get("object_type", "")))
+            for obj in self.observed_objects
+            if obj.get("object_type")
+        }
+        self.observed_predicates = {
+            parsed[0]
+            for parsed in (
+                self._parse_predicate_instance(predicate_str) for predicate_str in self.observed_predicate_strings
             )
-            print(response)
-            fix_json = response.text.strip()
-            print(f"\n  LLM Response:\n{fix_json[:500]}...\n")
+            if parsed is not None
+        }
 
-            # Parse the JSON response
-            fix_data = json.loads(fix_json)
+    def _extract_global_predicates(self, predicate_signatures: Sequence[str]) -> Set[str]:
+        globals_: Set[str] = set()
+        for signature in predicate_signatures:
+            pred_name, params, _ = self._normalize_predicate_signature(signature)
+            if pred_name and not params:
+                globals_.add(pred_name)
+        return globals_
 
-            analysis = fix_data.get("analysis", "")
-            fixes = fix_data.get("fixes", [])
-            explanation = fix_data.get("explanation", "")
-            goal_object_recommendations = fix_data.get("goal_object_recommendations", [])
-
-            print(f"  Analysis: {analysis}")
-            print(f"  Explanation: {explanation}")
-
-            # Display goal object recommendations and update task analysis if any
-            if goal_object_recommendations:
-                print(f"\n  ⚠ Goal Object Name Mismatches Detected:")
-                updates_applied = 0
-                for rec in goal_object_recommendations:
-                    expected = rec.get("goal_object_expected", rec.get("current_name", "?"))
-                    actual = rec.get("detected_object_actual", rec.get("detected_as", "?"))
-                    action = rec.get("action", "UPDATE_GOAL")
-
-                    # Skip if no actual object was detected (None, empty, or "None" string)
-                    if not actual or actual == "?" or actual == "None" or actual.lower() == "none":
-                        print(f"    • Goal expects: '{expected}' but NO matching object was detected")
-                        print(f"      ⚠ Cannot update goal - no objects detected. Check if perception is running.")
+    @staticmethod
+    def _infer_predicate_arities_from_actions(actions: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Scan action preconditions/effects and return {predicate_name: arg_count}."""
+        counts: Dict[str, int] = {}
+        _logical = {"and", "or", "not", "forall", "exists", "when", "imply"}
+        for action in actions:
+            for formula in (action.get("precondition", ""), action.get("effect", "")):
+                for m in re.finditer(r"\(([^()]+)\)", formula or ""):
+                    tokens = m.group(1).strip().split()
+                    if not tokens or tokens[0].lower() in _logical:
                         continue
+                    name = tokens[0].lower()
+                    arg_count = len([t for t in tokens[1:] if not t.startswith("(")])
+                    if name not in counts or counts[name] < arg_count:
+                        counts[name] = arg_count
+        return counts
 
-                    print(f"    • Goal expects: '{expected}' but detected object is: '{actual}'")
+    @staticmethod
+    def _normalize_predicate_signature(
+        predicate_str: str,
+    ) -> Tuple[Optional[str], List[Tuple[str, str]], str]:
+        if not predicate_str:
+            return None, [], ""
+        tokens = re.findall(r"[^\s()]+", predicate_str)
+        if not tokens:
+            return None, [], ""
+        predicate_name = sanitize_pddl_name(tokens[0])
+        variables = [token for token in tokens[1:] if token.startswith("?")]
+        params: List[Tuple[str, str]] = []
+        for idx, variable in enumerate(variables):
+            clean_name = sanitize_pddl_name(variable.lstrip("?") or f"arg{idx+1}")
+            params.append((clean_name, "object"))
+        normalized = f"({predicate_name}{(' ' + ' '.join(variables)) if variables else ''})"
+        return predicate_name, params, normalized
 
-                    # Update goal_objects AND goal_predicates in task analysis
-                    if self.task_analysis:
-                        # Update goal_objects list if object is in it
-                        if expected in self.task_analysis.goal_objects:
-                            idx = self.task_analysis.goal_objects.index(expected)
-                            self.task_analysis.goal_objects[idx] = actual
-                            print(f"      ✓ Updated task_analysis.goal_objects: '{expected}' → '{actual}'")
+    @staticmethod
+    def _normalize_action_parameters(parameters: Sequence[str]) -> List[Tuple[str, str]]:
+        normalized: List[Tuple[str, str]] = []
+        for idx, parameter in enumerate(parameters):
+            if not isinstance(parameter, str):
+                continue
+            raw_name = parameter.split("-")[0].strip()
+            clean_name = sanitize_pddl_name(raw_name.lstrip("?") or f"arg{idx+1}")
+            normalized.append((clean_name, "object"))
+        return normalized
 
-                        # Always update goal_predicates to use new object name
-                        updated_predicates = []
-                        any_updated = False
-                        for pred in self.task_analysis.goal_predicates:
-                            # Replace old object name with new one in predicate strings
-                            # Handle various formats: "(in bottle bag1)" or "in(bottle, bag1)"
-                            # Use word boundaries to avoid partial matches
-                            import re
-                            updated_pred = re.sub(rf'\b{re.escape(expected)}\b', actual, pred)
+    @staticmethod
+    def _extract_predicate_usages(formula: str) -> Set[Tuple[str, int]]:
+        usages: Set[Tuple[str, int]] = set()
+        for match in re.finditer(r"\(([^()]+)\)", formula or ""):
+            tokens = match.group(1).strip().split()
+            if not tokens:
+                continue
+            pred_name = sanitize_pddl_name(tokens[0])
+            if pred_name in LOGICAL_OPERATORS:
+                continue
+            usages.add((pred_name, max(len(tokens) - 1, 0)))
+        return usages
 
-                            # Normalize to ensure proper PDDL syntax after modification
-                            normalized_pred = self._normalize_goal_predicate(updated_pred)
+    @staticmethod
+    def _infer_action_predicate_arities(actions: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+        inferred: Dict[str, int] = {}
+        for action in actions:
+            for formula in (action.get("precondition", ""), action.get("effect", "")):
+                for pred_name, arity in PDDLDomainMaintainer._extract_predicate_usages(formula):
+                    inferred[pred_name] = max(inferred.get(pred_name, 0), arity)
+        return inferred
 
-                            updated_predicates.append(normalized_pred)
-                            if normalized_pred != pred:
-                                print(f"      ✓ Updated goal predicate: '{pred}' → '{normalized_pred}'")
-                                any_updated = True
+    @staticmethod
+    def _parse_predicate_instance(predicate_str: str) -> Optional[Tuple[str, List[str], bool]]:
+        predicate_str = sanitize_pddl_formula(predicate_str).strip()
+        if not predicate_str:
+            return None
 
-                        if any_updated:
-                            self.task_analysis.goal_predicates = updated_predicates
-                            updates_applied += 1
-                        else:
-                            print(f"      ℹ Object '{expected}' not found in goal predicates")
-                    else:
-                        print(f"      → Will update goal when domain is regenerated")
+        negated = False
+        text = predicate_str
+        if text.startswith("(not "):
+            negated = True
+            text = text[5:-1].strip()
 
-                if updates_applied > 0:
-                    print(f"\n  ✓ Updated {updates_applied} goal object name(s) in task analysis")
-                    print(f"  ℹ Goal predicates will use new names on next problem generation\n")
-                else:
-                    print(f"\n  ⚠ No objects detected in perception - cannot update goal object names")
-                    print(f"     Please ensure the object tracker has detected objects before planning\n")
+        if text.startswith("(") and text.endswith(")"):
+            text = text[1:-1].strip()
 
-            print(f"  Found {len(fixes)} fix(es) to apply\n")
+        tokens = text.split()
+        if not tokens:
+            return None
+        pred_name = sanitize_pddl_name(tokens[0])
+        if pred_name in LOGICAL_OPERATORS:
+            return None
+        return pred_name, [str(token) for token in tokens[1:]], negated
 
-            if not fixes and not goal_object_recommendations:
-                print("  ⚠ LLM did not provide any fixes or recommendations")
-                return
+    @staticmethod
+    def _parse_literal_formula(formula: str) -> Optional[Tuple[str, List[str], bool]]:
+        parsed = PDDLDomainMaintainer._parse_predicate_instance(formula)
+        if parsed is None:
+            return None
+        predicate, arguments, negated = parsed
+        if any(arg.startswith("?") for arg in arguments):
+            return None
+        return predicate, arguments, negated
 
-            # Get current domain text for domain-level fixes
-            current_domain_str = self.pddl.get_domain_text()
+    def _resolved_goal_formulas(self) -> List[str]:
+        assert self.task_analysis is not None
+        grounded = self.task_analysis.grounding_summary.grounded_goal_literals
+        if grounded:
+            formulas = list(grounded)
+        else:
+            formulas = [
+                self._apply_bindings_to_formula(formula, self.task_analysis.grounding_summary.object_bindings)
+                for formula in self.task_analysis.abstract_goal.goal_literals
+            ]
+        return [sanitize_pddl_formula(formula) for formula in formulas if formula]
 
-            # Apply all fixes sequentially (domain-level fixes only)
-            fixes_applied = 0
-            fixes_failed = 0
+    @staticmethod
+    def _apply_bindings_to_formula(formula: str, bindings: Dict[str, List[str]]) -> str:
+        updated = formula
+        for symbolic_name, object_ids in bindings.items():
+            if not object_ids:
+                continue
+            updated = re.sub(rf"\b{re.escape(symbolic_name)}\b", object_ids[0], updated)
+        return updated
 
-            for i, fix in enumerate(fixes, 1):
-                old_text = fix.get("old_text", "")
-                new_text = fix.get("new_text", "")
-                location = fix.get("location", "unknown location")
+    @staticmethod
+    def _strip_negative_preconditions(formula: str) -> str:
+        """Remove negative preconditions for STRIPS-only solvers."""
 
-                if not old_text or not new_text:
-                    print(f"  ⚠ Fix {i}: Invalid fix (missing old_text or new_text)")
-                    fixes_failed += 1
-                    continue
+        if "(not " not in formula:
+            return formula
 
-                # Skip problem file fixes since those are regenerated automatically
-                if "problem" in location.lower() or "goal" in location.lower() or ":objects" in location.lower() or ":init" in location.lower():
-                    print(f"\n  • Skipping fix {i}/{len(fixes)}: {location}")
-                    print(f"    (Problem file is regenerated automatically; use goal_object_recommendations instead)")
-                    continue
+        text = formula.strip()
+        if text.startswith("(and") and text.endswith(")"):
+            inner = text[4:-1].strip()
+            clauses: List[str] = []
+            depth = 0
+            start = None
+            for idx, char in enumerate(inner):
+                if char == "(":
+                    if depth == 0:
+                        start = idx
+                    depth += 1
+                elif char == ")":
+                    depth -= 1
+                    if depth == 0 and start is not None:
+                        clauses.append(inner[start : idx + 1].strip())
+                        start = None
+            filtered = [clause for clause in clauses if not clause.startswith("(not ")]
+            if not filtered:
+                return "(and)"
+            if len(filtered) == 1:
+                return filtered[0]
+            return f"(and {' '.join(filtered)})"
 
-                print(f"\n  • Applying fix {i}/{len(fixes)}: {location}")
-                print(f"    Replacing:\n{old_text[:150]}...")
-                print(f"    With:\n{new_text[:150]}...")
+        if text.startswith("(not "):
+            return "(and)"
+        return text
 
-                if old_text in current_domain_str:
-                    # Replace text (only first occurrence for safety)
-                    current_domain_str = current_domain_str.replace(old_text, new_text, 1)
-                    print(f"    ✓ Applied successfully")
-                    fixes_applied += 1
-                else:
-                    print(f"    ⚠ Could not find exact match in domain")
-                    fixes_failed += 1
-
-            # After all fixes, update the domain if any were applied
-            if fixes_applied > 0:
-                # Update text cache only (don't parse back to structured)
-                self.pddl.set_domain_text(current_domain_str, update_structured=False)
-                print(f"\n  ✓ Applied {fixes_applied} domain fix(es) successfully")
-                if fixes_failed > 0:
-                    print(f"  ⚠ Failed to apply {fixes_failed} fix(es)")
-
-                # Update ObjectTracker with refined predicates/actions
-                # Note: This requires the object_tracker to be passed to refine_domain_from_error
-                # For now, we'll add a separate method that the caller can use
-                # after refinement is complete
-
-            elif fixes_failed > 0:
-                print(f"\n  ✗ All {fixes_failed} fix(es) failed to match domain text")
-            elif len(fixes) == 0 and goal_object_recommendations:
-                print(f"  ℹ No domain fixes needed (only goal object updates)")
-            else:
-                print(f"\n  ✗ No fixes could be applied")
-
-        except json.JSONDecodeError as e:
-            print(f"⚠ Error parsing LLM JSON response: {e}")
-        except Exception as e:
-            print(f"⚠ Error during refinement: {e}")
-            import traceback
-            traceback.print_exc()
-
-    async def _fix_predicate_arity_from_error(
+    def _normalize_action_schema_library(
         self,
-        error_message: str,
-        llm_analysis: str
-    ) -> None:
-        """Fix predicate arity issues based on error message."""
-        # Extract predicate name from error if possible
-        # Example error: "wrong number of arguments for predicate empty-hand..."
+        library: ActionSchemaLibrary,
+    ) -> ActionSchemaLibrary:
+        """Normalize actions into a solver-safe STRIPS subset."""
 
-        # Run action validation which will fix arity issues
-        fixes = await self.validate_and_fix_action_predicates()
-
-        if fixes:
-            print(f"  ✓ Applied {sum(len(v) for v in fixes.values())} predicate fixes")
-
-    async def _add_missing_predicate_from_error(
-        self,
-        error_message: str,
-        llm_analysis: str
-    ) -> None:
-        """Add missing predicates based on error message."""
-        # Extract predicate name from error message
-        # This is a placeholder - in production you'd parse the error more carefully
-
-        # For now, trigger a re-validation
-        await self.validate_and_fix_action_predicates()
-
-        print("  ✓ Re-validated predicates")
+        return ActionSchemaLibrary(
+            actions=[
+                {
+                    "name": action.get("name", ""),
+                    "parameters": self._as_string_list(action.get("parameters")),
+                    "precondition": self._strip_negative_preconditions(
+                        sanitize_pddl_formula(str(action.get("precondition", "(and)")) or "(and)")
+                    ),
+                    "effect": sanitize_pddl_formula(str(action.get("effect", "(and)")) or "(and)"),
+                    "description": str(action.get("description", "")).strip(),
+                }
+                for action in library.actions
+                if isinstance(action, dict)
+            ],
+            planning_notes=list(library.planning_notes),
+        )
 
     def _get_prompt_template(self, template_key: str) -> str:
-        """Fetch prompt text for the given key."""
         template = self.prompt_templates.get(template_key)
         if template is None:
             raise KeyError(f"Missing prompt template: {template_key}")
         return template
-    
-    def set_global_predicates(self, predicates: List[str]) -> None:
-        """
-        Set global predicates (predicates not related to specific objects).
 
-        Global predicates represent robot or environment state that should be
-        true initially before task execution.
+    @staticmethod
+    def _normalize_actions(actions: Any) -> List[Dict[str, Any]]:
+        if not isinstance(actions, list):
+            return []
+        normalized = []
+        for action in actions:
+            if not isinstance(action, dict):
+                continue
+            normalized.append(
+                {
+                    "name": str(action.get("name", "")).strip(),
+                    "parameters": PDDLDomainMaintainer._as_string_list(action.get("parameters")),
+                    "precondition": sanitize_pddl_formula(str(action.get("precondition", ""))),
+                    "effect": sanitize_pddl_formula(str(action.get("effect", ""))),
+                    "description": str(action.get("description", "")).strip(),
+                }
+            )
+        return normalized
 
-        Examples:
-            - hand_is_empty
-            - arm_at_home
-            - gripper_open
-
-        Args:
-            predicates: List of global predicate names (not predicate strings with args)
-        """
-        self.global_predicates = self.global_predicates.union(set(predicates))
-
-    def add_global_predicate(self, predicate: str) -> None:
-        """
-        Add a single global predicate.
-
-        Args:
-            predicate: Global predicate name
-        """
-        self.global_predicates.add(predicate)
-
-    def get_global_predicates(self) -> List[str]:
-        """
-        Get all global predicates.
-
-        Returns:
-            List of global predicate names
-        """
-        return sorted(list(self.global_predicates))
-
-    def clear_global_predicates(self) -> None:
-        """Clear all global predicates."""
-        self.global_predicates.clear()
-
-    async def update_object_tracker_from_domain(self, object_tracker) -> None:
-        """
-        Update the ObjectTracker's predicates and actions from the current PDDL domain.
-
-        This should be called after domain refinement to ensure the ObjectTracker
-        uses the latest predicates and actions for object analysis.
-
-        Args:
-            object_tracker: ObjectTracker instance to update
-        """
-        try:
-            # Get all predicates from the PDDL representation
-            predicates_dict = await self.pddl.get_all_predicates()
-            predicate_names = list(predicates_dict.keys())
-
-            # Get all actions from the PDDL representation
-            actions_dict = await self.pddl.get_all_actions()
-            action_names = list(actions_dict.keys())
-
-            # Update the object tracker
-            if predicate_names:
-                object_tracker.set_pddl_predicates(predicate_names)
-                print(f"  ✓ Updated ObjectTracker with {len(predicate_names)} predicates: {predicate_names}")
-
-            if action_names:
-                object_tracker.set_pddl_actions(action_names)
-                print(f"  ✓ Updated ObjectTracker with {len(action_names)} actions: {action_names}")
-
-        except Exception as e:
-            print(f"  ⚠ Error updating ObjectTracker from domain: {e}")
-            import traceback
-            traceback.print_exc()
+    @staticmethod
+    def _as_string_list(value: Any) -> List[str]:
+        if not value:
+            return []
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        return [str(value).strip()]

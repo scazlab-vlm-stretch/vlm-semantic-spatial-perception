@@ -71,12 +71,16 @@ class SkillDecomposer:
         else:
             self._perception_pool_dir = Path(self._state_dir) / "perception_pool"
 
-        default_llm_config = {
+        # Models that support thinking (dynamic budget). Others get no ThinkingConfig.
+        _THINKING_MODELS = ("gemini-2.5",)
+        _supports_thinking = any(t in model_name for t in _THINKING_MODELS)
+        default_llm_config: Dict[str, Any] = {
             "top_p": 0.8,
             "max_output_tokens": 4096,
             "response_mime_type": "application/json",
-            "thinking_config": types.ThinkingConfig(thinking_budget=-1),
         }
+        if _supports_thinking:
+            default_llm_config["thinking_config"] = types.ThinkingConfig(thinking_budget=-1)
         self.llm_config_kwargs = {**default_llm_config, **(llm_config_kwargs or {})}
 
     # --------------------------------------------------------------------- #
@@ -303,14 +307,21 @@ class SkillDecomposer:
 
         object_section = "\n".join(_format_obj(o) for o in relevant[:10]) or "none"
 
-        return template.format(
-            primitive_catalog=primitive_catalog.strip(),
-            action_name=action_name,
-            parameters=json.dumps(parameters, ensure_ascii=True),
-            object_section=object_section,
-            last_snapshot_id=snapshot_artifacts.snapshot_id,
-            perception_context=perception_context,
-        )
+        # Use simple sequential replacement instead of str.format() to avoid
+        # IndexError / KeyError when substituted values contain curly braces
+        # (e.g. JSON dicts in object_section or perception_context).
+        substitutions = {
+            "{primitive_catalog}": primitive_catalog.strip(),
+            "{action_name}": action_name,
+            "{parameters}": json.dumps(parameters, ensure_ascii=True),
+            "{object_section}": object_section,
+            "{last_snapshot_id}": str(snapshot_artifacts.snapshot_id),
+            "{perception_context}": perception_context,
+        }
+        result = template
+        for placeholder, value in substitutions.items():
+            result = result.replace(placeholder, value)
+        return result
 
     def _call_llm(
         self,

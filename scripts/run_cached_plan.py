@@ -139,7 +139,7 @@ def main() -> None:
     parser.add_argument(
         "--robot-ip",
         default=DEFAULT_ROBOT_IP,
-        help=f"Robot IP for CuRoboMotionPlanner (default: {DEFAULT_ROBOT_IP}).",
+        help=f"Robot IP (default: {DEFAULT_ROBOT_IP}).",
     )
     parser.add_argument(
         "--output",
@@ -214,13 +214,13 @@ def main() -> None:
 def _build_primitives_interface(execute: bool, robot_ip: Optional[str]):
     if not execute:
         return None
-    from src.kinematics.xarm_curobo_interface import CuRoboMotionPlanner
+    from src.kinematics.xarm_pybullet_interface import XArmPybulletInterface
 
     print(
         f"⚠️  EXECUTION ENABLED: connecting to {robot_ip or DEFAULT_ROBOT_IP} "
-        "via CuRoboMotionPlanner."
+        "via XArmPybulletInterface."
     )
-    return CuRoboMotionPlanner(robot_ip=robot_ip)
+    return XArmPybulletInterface()
 
 
 if __name__ == "__main__":
