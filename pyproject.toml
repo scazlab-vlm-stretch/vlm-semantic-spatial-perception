@@ -42,6 +42,7 @@ dependencies = [
     "timm>=1.0.25",
     "fairscale>=0.4.13",
     "bitsandbytes>=0.49.2",
+    "roslibpy>=2.0.0",
 ]
 torch = [
   { index = "pytorch-cu129", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
