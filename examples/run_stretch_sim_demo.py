@@ -129,7 +129,7 @@ TASK = os.getenv(
 )
 
 HF_MODEL        = os.getenv("HF_MODEL", "")
-GEMINI_MODEL    = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL    = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 DECOMPOSER_MODEL= os.getenv("DECOMPOSER_MODEL", "gemini-2.5-flash")
 
 USE_GSAM2             = os.getenv("USE_GSAM2", "").strip() in ("1", "true", "yes")
@@ -355,6 +355,13 @@ async def run_demo() -> int:
         viewer_pitch=-25,
     )
     env.start()
+
+    # print(f"rah rah rah{env._link_name_to_index.keys()}", flush=True)
+    # print("urdf path:", _STRETCH_URDF)
+    # print("exists:", _STRETCH_URDF.exists())
+    # print("robot id:", getattr(env, "robot_id", None))
+    # print("robot:", getattr(env, "robot", None))
+    # print("dir(env):", [x for x in dir(env) if "link" in x.lower() or "robot" in x.lower()])
 
     # Patch module-level colour/size dicts before spawning objects so that
     # the Stretch-specific colours and table sizes are used, then restore.
