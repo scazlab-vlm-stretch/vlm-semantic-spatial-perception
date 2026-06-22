@@ -128,11 +128,11 @@ TASK = os.getenv(
     "Pick up the blue block from the brown table and place it on the red table.",
 )
 
-HF_MODEL        = os.getenv("HF_MODEL", "")
+HF_MODEL        = os.getenv("HF_MODEL", "") #HF = HuggingFace VLM
 GEMINI_MODEL    = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 DECOMPOSER_MODEL= os.getenv("DECOMPOSER_MODEL", "gemini-2.5-flash")
 
-USE_GSAM2             = os.getenv("USE_GSAM2", "").strip() in ("1", "true", "yes")
+USE_GSAM2             = os.getenv("USE_GSAM2", "").strip() in ("1", "true", "yes") # returns True if stripped string matches any of these values
 GSAM2_SAM2_CFG        = os.getenv("SAM2_CFG", "configs/sam2.1/sam2.1_hiera_l.yaml")
 GSAM2_SAM2_CKPT       = os.getenv("SAM2_CKPT", "")
 GSAM2_RAM_CKPT        = os.getenv("RAM_CKPT", "")
@@ -283,10 +283,10 @@ async def run_demo() -> int:
     _timings: Dict[str, float] = {}
     _t_total = time.monotonic()
 
-    def _tick(label: str) -> float:
+    def _tick(label: str) -> float: #returns the current start time
         return time.monotonic()
 
-    def _tock(label: str, t0: float) -> float:
+    def _tock(label: str, t0: float) -> float: #computers how much time has passed since t0
         elapsed = time.monotonic() - t0
         _timings[label] = elapsed
         return elapsed
@@ -615,15 +615,15 @@ async def run_demo() -> int:
         from src.primitives.primitive_executor import PrimitiveExecutor
         from src.kinematics.sim.stretch_pybullet_primitives import StretchPyBulletPrimitives
 
-        stretch_primitives = StretchPyBulletPrimitives(
+        stretch_primitives = StretchPyBulletPrimitives( #exposes the primive actions
             env=env,
             registry=orchestrator.tracker.registry,
         )
-        executor = PrimitiveExecutor(
+        executor = PrimitiveExecutor( #carries out primitive actions
             primitives=stretch_primitives,
             perception_pool_dir=OUTPUT_DIR / "perception_pool",
         )
-        decomposer = SkillDecomposer(
+        decomposer = SkillDecomposer( #decides the primitive actions (from a high-level symbolic action)
             api_key=api_key or os.getenv("GOOGLE_API_KEY", ""),
             model_name=DECOMPOSER_MODEL,
             orchestrator=orchestrator,

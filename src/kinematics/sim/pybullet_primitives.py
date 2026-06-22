@@ -312,7 +312,7 @@ class PyBulletPrimitives:
     def _move_to(
         self,
         target_pos: List[float],
-        target_orn: List[float],
+        target_orn: List[float], #target orientation as quaternion
         label: str = "",
     ) -> None:
         """IK-solve for target_pos/orn and interpolate the robot joints."""
