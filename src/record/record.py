@@ -1,6 +1,6 @@
 import math
 import rospy
-from trajectory_msgs.msg import JointTrajectoryPoint
+from sensory_msgs.msg import JointState
 
 class Record:
     """
@@ -18,17 +18,21 @@ class Record:
         self.start = False
         self.stop = False
 
+        self.start_time = 0
+
         # self.velocity_threshold = 0.05  # Threshold for detecting significant velocity changes
         # note: in position mode, Stretch position commands are tracked by a trapezoidal motion profile.
 
         self.waypoints = {} 
 
-    def start_recording(self):
+    def start_recording(self, time):
         """
         Start recording the waypoints.
         """
         self.start = True
         self.stop = False
+
+        self.start_time = time
 
     def stop_recording(self):
         """
@@ -42,15 +46,18 @@ class Record:
                 prev_waypoint = self.waypoints[joint_name][-1]
                 prev_joint_direction = math.copysign(1, prev_waypoint[0] if len(self.waypoints[joint_name]) < 2 else prev_waypoint[0] - self.waypoints[joint_name][-2][0])  # Get the direction of the previous joint velocity (don't use velocity itself because it jumps between 0.001 and -0.001 at rest)
                 if math.copysign(1, velocity) != prev_joint_direction:
-                    self.waypoints[joint_name].append([position, velocity, time_stamp])
+                    self.waypoints[joint_name].append([position, velocity, time_stamp - self.start_time])
             else:
                 self.waypoints[joint_name] = []
-                self.waypoints[joint_name].append([position, velocity, time_stamp])
+                self.waypoints[joint_name].append([position, velocity, - self.start_time])
         elif self.stop and self.start: #stopped recording, but need to record the last waypoint
             self.start = False
             if joint_name in self.waypoints:
-                self.waypoints[joint_name].append([position, velocity, time_stamp])
-    
+                self.waypoints[joint_name].append([position, velocity, - self.start_time])
+
+            self.print_waypoints()
+            
+
     def get_waypoints(self):
         """
         Get the recorded waypoints.
@@ -80,13 +87,17 @@ class Record:
 
     def callback(self, data):
         """
-        Callback function to process incoming JointTrajectoryPoint messages.
+        Callback function to process incoming JointState messages.
         """
-        joint_name = data.joint_names[0]  # Assuming single joint for simplicity
-        position = data.positions[0]
-        velocity = data.velocities[0]
-        time_stamp = data.time_from_start.to_sec()
-        self.detect_waypoint(joint_name, position, velocity, time_stamp)
+        for index, name in enumerate(data.name):
+            joint_name = data.name[index]
+            position = data.positions[index]
+            velocity = data.velocities[index]
+            time_stamp = rospy.Time.now() - self.start_time
+            self.detect_waypoint(joint_name, position, velocity, 0)
+
+    def get_time_elapsed(self):
+        return rospy.Time.now() - self.start_time
 
     def main(self):
         """
@@ -95,13 +106,18 @@ class Record:
         rospy.init_node('record_waypoints', anonymous=True)
         rospy.loginfo("Recording waypoints...")
 
-        rospy.Subscriber('/stretch/joint_states', JointTrajectoryPoint, self.callback)
+        rospy.Subscriber('/stretch/joint_states', JointState, self.callback)
 
 if __name__ == "__main__":
     record = Record()
-    record.start_recording()
-    record.detect_waypoint("joint1", 0.0, 0.1, 0.0)
-    record.detect_waypoint("joint1", 0.5, 0.2, 1.0)
-    record.detect_waypoint("joint1", 1.0, -0.1, 2.0)  # change in velocity direction
-    record.stop_recording()
-    record.print_waypoints()
+
+    record.start_recording(rospy.Time.now())
+    record.main()
+    
+    rate = rospy.Rate(10)
+    while not rospy.is_shutdown():
+        if record.get_time_elapsed > 10:
+            record.stop_recording()
+        rate.sleep()
+
+    
