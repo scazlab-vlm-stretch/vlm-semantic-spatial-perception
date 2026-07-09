@@ -1,6 +1,6 @@
 import math
 import rospy
-from sensory_msgs.msg import JointState
+from sensor_msgs.msg import JointState
 
 class Record:
     """
@@ -46,14 +46,14 @@ class Record:
                 prev_waypoint = self.waypoints[joint_name][-1]
                 prev_joint_direction = math.copysign(1, prev_waypoint[0] if len(self.waypoints[joint_name]) < 2 else prev_waypoint[0] - self.waypoints[joint_name][-2][0])  # Get the direction of the previous joint velocity (don't use velocity itself because it jumps between 0.001 and -0.001 at rest)
                 if math.copysign(1, velocity) != prev_joint_direction:
-                    self.waypoints[joint_name].append([position, velocity, time_stamp - self.start_time])
+                    self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp])
             else:
                 self.waypoints[joint_name] = []
-                self.waypoints[joint_name].append([position, velocity, - self.start_time])
+                self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp])
         elif self.stop and self.start: #stopped recording, but need to record the last waypoint
             self.start = False
             if joint_name in self.waypoints:
-                self.waypoints[joint_name].append([position, velocity, - self.start_time])
+                self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp])
 
             self.print_waypoints()
             
@@ -91,13 +91,16 @@ class Record:
         """
         for index, name in enumerate(data.name):
             joint_name = data.name[index]
-            position = data.positions[index]
-            velocity = data.velocities[index]
+            position = data.position[index]
+            velocity = data.velocity[index]
             time_stamp = rospy.Time.now() - self.start_time
-            self.detect_waypoint(joint_name, position, velocity, 0)
+            self.detect_waypoint(joint_name, position, velocity, time_stamp.to_sec())
 
     def get_time_elapsed(self):
         return rospy.Time.now() - self.start_time
+
+    def is_recording(self):
+        return self.start == True
 
     def main(self):
         """
@@ -110,14 +113,22 @@ class Record:
 
 if __name__ == "__main__":
     record = Record()
+    record.main()
 
     record.start_recording(rospy.Time.now())
-    record.main()
     
     rate = rospy.Rate(10)
-    while not rospy.is_shutdown():
-        if record.get_time_elapsed > 10:
-            record.stop_recording()
-        rate.sleep()
+
+    try:
+        while (not rospy.is_shutdown()) and record.is_recording():
+            if record.get_time_elapsed().to_sec() > 4:
+                record.stop_recording()
+            rate.sleep()
+
+        record.print_waypoints()
+
+    except KeyboardInterrupt:
+        print("WAYPOINTS:\n", flush=True)
+        record.print_waypoints()
 
     
