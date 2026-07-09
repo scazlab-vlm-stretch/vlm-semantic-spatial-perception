@@ -1,4 +1,6 @@
 import math
+import rospy
+from trajectory_msgs.msg import JointTrajectoryPoint
 
 class Record:
     """
@@ -75,6 +77,25 @@ class Record:
         import json
         with open(file_path, 'w') as f:
             json.dump(self.waypoints, f, indent=4)
+
+    def callback(self, data):
+        """
+        Callback function to process incoming JointTrajectoryPoint messages.
+        """
+        joint_name = data.joint_names[0]  # Assuming single joint for simplicity
+        position = data.positions[0]
+        velocity = data.velocities[0]
+        time_stamp = data.time_from_start.to_sec()
+        self.detect_waypoint(joint_name, position, velocity, time_stamp)
+
+    def main(self):
+        """
+        Main function to run the recording process.
+        """
+        rospy.init_node('record_waypoints', anonymous=True)
+        rospy.loginfo("Recording waypoints...")
+
+        rospy.Subscriber('/stretch/joint_states', JointTrajectoryPoint, self.callback)
 
 if __name__ == "__main__":
     record = Record()
