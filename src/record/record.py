@@ -44,7 +44,10 @@ class Record:
         if self.start:
             if joint_name in self.waypoints:
                 prev_waypoint = self.waypoints[joint_name][-1]
-                prev_joint_direction = math.copysign(1, prev_waypoint[0] if len(self.waypoints[joint_name]) < 2 else prev_waypoint[0] - self.waypoints[joint_name][-2][0])  # Get the direction of the previous joint velocity (don't use velocity itself because it jumps between 0.001 and -0.001 at rest)
+                prev_joint_direction = math.copysign(1, prev_waypoint[0]) \
+                    if len(self.waypoints[joint_name]) < 2 \
+                        else math.copysign(1, prev_waypoint[0] - self.waypoints[joint_name][-2][0])  # Get the direction of the previous joint velocity (don't use velocity itself because it jumps between 0.001 and -0.001 at rest)
+                
                 if math.copysign(1, velocity) != prev_joint_direction:
                     self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp])
             else:
@@ -120,11 +123,13 @@ if __name__ == "__main__":
     rate = rospy.Rate(10)
 
     try:
-        while (not rospy.is_shutdown()) and record.is_recording():
-            if record.get_time_elapsed().to_sec() > 4:
-                record.stop_recording()
+        print("Is recording?", record.is_recording(), flush=True)
+        while not rospy.is_shutdown() and record.get_time_elapsed().to_sec() < 4:
             rate.sleep()
 
+        record.stop_recording()
+        
+        print("Is recording?", record.is_recording(), flush=True)
         record.print_waypoints()
 
     except KeyboardInterrupt:
