@@ -500,3 +500,599 @@ main semaphore destroyed
     [33mPlanning LLM:[0m Google GenAI (gemini-3-flash-preview)
     [33mDecomposer LLM:[0m Google GenAI (gemini-robotics-er-1.5-preview)
     [33mRun ID:[0m 20260330_125724
+startThreads creating 1 threads.
+starting thread 0
+started thread 0 
+argc=2
+argv[0] = --unused
+argv[1] = --start_demo_name=Physics Server
+ExampleBrowserThreadFunc started
+X11 functions dynamically loaded using dlopen/dlsym OK!
+X11 functions dynamically loaded using dlopen/dlsym OK!
+Creating context
+Created GL 3.3 context
+Direct GLX rendering context obtained
+Making context current
+GL_VENDOR=NVIDIA Corporation
+GL_RENDERER=NVIDIA GeForce RTX 3060/PCIe/SSE2
+GL_VERSION=3.3.0 NVIDIA 570.133.07
+GL_SHADING_LANGUAGE_VERSION=3.30 NVIDIA via Cg compiler
+pthread_getconcurrency()=0
+Version = 3.3.0 NVIDIA 570.133.07
+Vendor = NVIDIA Corporation
+Renderer = NVIDIA GeForce RTX 3060/PCIe/SSE2
+b3Printf: Selected demo: Physics Server
+startThreads creating 1 threads.
+starting thread 0
+started thread 0 
+MotionThreadFunc thread started
+ven = NVIDIA Corporation
+ven = NVIDIA Corporation
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_bottom_screw_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_depth_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_depth_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_infra1_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_infra1_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_infra2_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_infra2_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_color_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_color_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_accel_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No i
+[1m[34m========================================================================[0m
+[1m[34m  Stretch Simulation Demo[0m
+[1m[34m========================================================================[0m
+    [33mTask:[0m Pick up the blue block from the brown table and place it on the red table.
+    [33mScene:[0m ['brown_table_1', 'red_table_1', 'blue_block_1']
+    [33mOutput:[0m outputs/stretch_demo/runs/20260417_121556
+    [33mPerception:[0m Google GenAI (gemini-3-flash-preview)
+    [33mRun ID:[0m 20260417_121556
+  [32m✓[0m Google GenAI client ready (model=gemini-3-flash-preview)
+
+[1m[36m── Starting PyBullet Stretch environment ───────────────────────────────[0m
+[90m12:16:02[0m [36mINFO    [0m [90m[scene_environmen][0m Loaded URDF (robot_id=1, client=0)
+[90m12:16:02[0m [36mINFO    [0m [90m[scene_environmen][0m Added 3 scene objects (client=0)
+  [32m✓[0m PyBullet GUI started — Stretch robot in scene
+[90m12:16:03[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+  [32m✓[0m Sim camera verified: 640×480 RGB
+    [33mCamera preview:[0m outputs/stretch_demo/runs/20260417_121556/initial_camera_view.png
+
+[1m[36m── Configuring TaskOrchestrator ────────────────────────────────────────[0m
+  [32m✓[0m Config built
+
+[1m[36m── Initialising orchestrator subsystems ────────────────────────────────[0m
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Initializing Task Orchestrator...
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Sim camera mode — frame provider will be injected
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • PDDL representation created
+ℹ LLMTaskAnalyzer using injected LLMClient: GoogleGenAIClient
+  • Robot description configured (265 chars)
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • PDDL domain maintainer and monitor initialized
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Layered domain generator initialized (use_layered_generation=True)
+[90m12:16:04[0m [36mINFO    [0m [90m[ObjectTracker][0m Loaded prompts from /home/fern-stretch/vlm-semantic-spatial-perception/config/object_tracker_prompts.yaml
+[90m12:16:04[0m [36mINFO    [0m [90m[ObjectTracker][0m ObjectTracker initialized with injected LLMClient: GoogleGenAIClient
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Continuous object tracker initialized
+  • PDDL solver initialized (backend: pyperplan, available: pyperplan)
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Auto-save enabled on: detection updates, state changes
+[90m12:16:04[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: uninitialized → idle
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Task Orchestrator initialized and ready
+  [32m✓[0m Orchestrator initialised
+  [32m✓[0m Sim frame provider injected
+
+[1m[36m── Initial perception pass ─────────────────────────────────────────────[0m
+ℹ Task context updated: "Pick up the blue block from the brown table and place it on the red table."
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m STARTING CONTINUOUS DETECTION
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Update interval: 4.0s
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Minimum observations: 3
+[90m12:16:04[0m [36mINFO    [0m [90m[ObjectTracker][0m Continuous tracker started
+[90m12:16:04[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: idle → detecting
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Continuous detection started
+[90m12:16:04[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:16:04[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+[90m12:16:04[0m [36mINFO    [0m [90m[ObjectTracker][0m Detecting objects in scene (async)...
+[90m12:16:04[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:06[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection phase complete in 1.7s (3 objects)
+[90m12:16:06[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:06[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:06[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+ℹ Object 'red_table' predicates: ['clear red_table_1'], original predicates: ['clear red_table_1']
+ℹ Object 'brown_table' predicates: ['on blue_block_1 brown_table_1'], original predicates: ['on blue_block_1 brown_table_1']
+ℹ Object 'blue_block' predicates: ['on blue_block_1 brown_table_1', 'clear blue_block_1'], original predicates: ['on blue_block_1 brown_table_1', 'clear blue_block_1']
+[90m12:16:14[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection complete in 9.4s
+[90m12:16:14[0m [36mINFO    [0m [90m[stretch_demo][0m Detection cycle 1 — 3 objects observed
+[90m12:16:14[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:14[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:16:14[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+[90m12:16:14[0m [36mINFO    [0m [90m[ObjectTracker][0m Detecting objects in scene (async)...
+[90m12:16:14[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:18[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection phase complete in 4.3s (3 objects)
+[90m12:16:18[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:18[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:18[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+ℹ Object 'red_table' predicates: ['is_table red_table_1'], original predicates: ['is_table red_table_1']
+ℹ Object 'blue_block' predicates: ['on blue_block brown_table', 'clear blue_block'], original predicates: ['on blue_block brown_table', 'clear blue_block']
+ℹ Object 'brown_table' predicates: ['on blue_block_1 brown_table_1'], original predicates: ['on blue_block_1 brown_table_1']
+[90m12:16:24[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection complete in 10.0s
+[90m12:16:24[0m [36mINFO    [0m [90m[stretch_demo][0m Detection cycle 2 — 3 objects observed
+[90m12:16:24[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:24[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:16:24[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+[90m12:16:24[0m [36mINFO    [0m [90m[ObjectTracker][0m Detecting objects in scene (async)...
+[90m12:16:24[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:28[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection phase complete in 3.8s (3 objects)
+[90m12:16:28[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:28[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:28[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+ℹ Object 'blue_block' predicates: ['on blue_block_1 brown_table_1', 'clear blue_block_1'], original predicates: ['on blue_block_1 brown_table_1', 'clear blue_block_1']
+ℹ Object 'brown_table' predicates: ['on blue_block_1 brown_table_1'], original predicates: ['on blue_block_1 brown_table_1']
+ℹ Object 'red_table' predicates: ['clear red_table_1'], original predicates: ['clear red_table_1']
+[90m12:16:36[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection complete in 11.6s
+[90m12:16:36[0m [36mINFO    [0m [90m[stretch_demo][0m Detection cycle 3 — 3 objects observed
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:16:36[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+[90m12:16:36[0m [36mINFO    [0m [90m[ObjectTracker][0m Detecting objects in scene (async)...
+[90m12:16:36[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Stopping continuous detection...
+[90m12:16:36[0m [36mINFO    [0m [90m[ObjectTracker][0m Continuous tracker stopped
+[90m12:16:36[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: detecting → idle
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Detection stopped
+  [32m✓[0m Pre-detected 3 object(s): ['blue_block', 'brown_table', 'red_table']
+
+[1m[36m── Processing task — layered domain generation ─────────────────────────[0m
+[90m12:16:36[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: idle → analyzing_task
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m PROCESSING TASK REQUEST
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Task: "Pick up the blue block from the brown table and place it on the red table."
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Analyzing task with LLM...
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Using layered domain generator (L1–L5 pipeline)...
+
+[LayeredDomainGenerator] Generating domain for: 'Pick up the blue block from the brown table and place it on the red table.'
+  Scene objects: ['blue_block', 'brown_table', 'red_table']
+[90m12:16:36[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:36[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+  [L1] Goals: ['(on blue_block red_table)']
+[90m12:16:37[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+  [L2 repair] Auto-generated checked variant: (checked-object-graspable ?obj - object)
+  [L2] Predicates: ['(on ?obj - object ?surface - object)', '(holding ?obj - object)', '(hand-empty)', '(clear ?obj - object)', '(object-graspable ?obj - object)', '(checked-object-graspable ?obj - object)']
+  [L2] Auto-generated checked variants: ['(checked-object-graspable ?obj - object)']
+[90m12:16:38[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+  [L3-V4] BFS: reachable=['checked-object-graspable', 'clear', 'hand-empty', 'holding', 'on'], unreachable_from_vocab=['object-graspable']
+  [L3] Actions: ['pick', 'place']
+  [L2-V5] Removed 1 unused predicates: ['object-graspable']
+  [L5-V1] Added 6 FALSE entries for completeness.
+  [L5] Initial true literals: 1, false: 9
+  • Identified 1 global predicates: hand-empty
+[90m12:16:40[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Task analyzed!
+[90m12:16:40[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Goal objects: blue_block, red_table
+[90m12:16:40[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Goal summary: Pick up the blue block from the brown table and place it on the red table.
+[90m12:16:40[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Required predicates: 5
+[90m12:16:40[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Action schemas: 3
+[90m12:16:40[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Configuring perception with 5 predicates...
+[90m12:16:40[0m [36mINFO    [0m [90m[ObjectTracker][0m PDDL predicates updated: ['(on ?obj ?surface)', '(holding ?obj)', 'hand-empty', '(clear ?obj)', '(checked-object-graspable ?obj)']
+[90m12:16:40[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+  • Setting task context for grounded object detection...
+ℹ Task context updated: "Pick up the blue block from the brown table and place it on the red table."
+ℹ Available actions updated: 3 actions
+ℹ Goal objects updated: 2 objects - blue_block, red_table
+
+======================================================================
+
+[90m12:16:40[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: analyzing_task → idle
+  [32m✓[0m Domain generated in 3.9s
+    [33mgoal_predicates:[0m ['(on blue_block red_table)']
+    [33mgoal_objects:[0m ['blue_block', 'red_table']
+
+[1m[36m── Continuous detection ────────────────────────────────────────────────[0m
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m STARTING CONTINUOUS DETECTION
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Update interval: 4.0s
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Minimum observations: 3
+[90m12:16:42[0m [36mINFO    [0m [90m[ObjectTracker][0m Continuous tracker started
+[90m12:16:42[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: idle → detecting
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Continuous detection started
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:16:42[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+[90m12:16:42[0m [36mINFO    [0m [90m[ObjectTracker][0m Detecting objects in scene (async)...
+[90m12:16:42[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:42[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:16:46[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection phase complete in 3.5s (3 objects)
+[90m12:16:46[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:46[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:46[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+ℹ Object 'blue_block' predicates: ['on blue_block brown_table', 'hand-empty', 'clear blue_block'], original predicates: ['on blue_block brown_table', 'hand-empty', 'clear blue_block']
+ℹ Object 'red_table' predicates: ['clear red_table'], original predicates: ['clear red_table']
+ℹ Object 'brown_table' predicates: ['on blue_block brown_table'], original predicates: ['on blue_block brown_table']
+[90m12:16:57[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection complete in 14.5s
+[90m12:16:57[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:58[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: detecting → ready_for_planning
+[90m12:16:58[0m [36mINFO    [0m [90m[stretch_demo][0m Detection cycle 1 — 3 objects observed
+[90m12:16:58[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:58[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:16:58[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+[90m12:16:58[0m [36mINFO    [0m [90m[ObjectTracker][0m Detecting objects in scene (async)...
+[90m12:16:58[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:16:58[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:16:58[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:17:02[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection phase complete in 3.8s (3 objects)
+[90m12:17:02[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:17:02[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:17:02[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+ℹ Object 'red_table' predicates: ['clear red_table', 'hand-empty'], original predicates: ['clear red_table', 'hand-empty']
+ℹ Object 'blue_block' predicates: ['on blue_block brown_table', 'clear blue_block', 'hand-empty'], original predicates: ['on blue_block brown_table', 'clear blue_block', 'hand-empty']
+ℹ Object 'brown_table' predicates: ['on blue_block brown_table', 'hand-empty'], original predicates: ['on blue_block brown_table', 'hand-empty']
+[90m12:17:16[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection complete in 18.2s
+[90m12:17:16[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:17:18[0m [36mINFO    [0m [90m[stretch_demo][0m Detection cycle 2 — 3 objects observed
+[90m12:17:18[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:17:18[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:17:18[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+[90m12:17:18[0m [36mINFO    [0m [90m[ObjectTracker][0m Detecting objects in scene (async)...
+[90m12:17:18[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:17:21[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection phase complete in 2.9s (3 objects)
+[90m12:17:21[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:17:21[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:17:21[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+ℹ Object 'red_table' predicates: ['clear red_table', 'hand-empty'], original predicates: ['clear red_table', 'hand-empty']
+ℹ Object 'brown_table' predicates: ['on blue_block brown_table'], original predicates: ['on blue_block brown_table']
+ℹ Object 'blue_block' predicates: ['on blue_block brown_table', 'clear blue_block', 'hand-empty'], original predicates: ['on blue_block brown_table', 'clear blue_block', 'hand-empty']
+[90m12:17:37[0m [36mINFO    [0m [90m[ObjectTracker][0m Detection complete in 19.3s
+[90m12:17:37[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:17:39[0m [36mINFO    [0m [90m[stretch_demo][0m Detection cycle 3 — 3 objects observed
+[90m12:17:39[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:17:39[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:17:39[0m [36mINFO    [0m [90m[scene_environmen][0m Sim camera frame 640x480 — depth [1.00, 2.96]m (client=0)
+[90m12:17:39[0m [36mINFO    [0m [90m[ObjectTracker][0m Detecting objects in scene (async)...
+[90m12:17:39[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+[90m12:17:39[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Stopping continuous detection...
+[90m12:17:39[0m [36mINFO    [0m [90m[ObjectTracker][0m Continuous tracker stopped
+[90m12:17:39[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: ready_for_planning → idle
+[90m12:17:39[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Detection stopped
+  [32m✓[0m Detection complete — 3 objects in registry
+    [33m  blue_block:[0m type=blue_block pos3d=[0.38922185 0.07546138 1.2113537 ]
+    [33m  brown_table:[0m type=brown_table pos3d=[0.31611776 0.1975736  1.0956354 ]
+    [33m  red_table:[0m type=red_table pos3d=[-0.3789821  0.1975736  1.0956354]
+  [32m✓[0m Debug frames → outputs/stretch_demo/runs/20260417_121556/debug_frames (latest: latest.png)
+
+[1m[36m── Generating PDDL domain & problem files ──────────────────────────────[0m
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m GENERATING PDDL FILES
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Syncing objects from tracker to PDDL...
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m     Found 3 objects in registry
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Adding 1 global predicates to initial state...
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added global predicate: hand-empty
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Added 4 initial literals from L5 + affordances
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Setting goal state from task analysis...
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Generating files to outputs/stretch_demo/runs/20260417_121556/pddl...
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ PDDL files generated:
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Domain: outputs/stretch_demo/runs/20260417_121556/pddl/task_execution_domain.pddl
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Problem: outputs/stretch_demo/runs/20260417_121556/pddl/task_execution_problem.pddl
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Domain Summary:
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Types: 1
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Predicates: 5
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Actions: 3
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Problem Summary:
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Objects: 3
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Initial literals: 5
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Goal literals: 1
+[90m12:17:41[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+  [32m✓[0m Domain  → outputs/stretch_demo/runs/20260417_121556/pddl/task_execution_domain.pddl
+  [32m✓[0m Problem → outputs/stretch_demo/runs/20260417_121556/pddl/task_execution_problem.pddl
+
+[1m[36m── Generated PDDL Domain ───────────────────────────────────────────────[0m
+;; Auto-generated PDDL domain: task_execution
+;; Generated at: 2026-04-17 12:17:41
+
+(define (domain task_execution)
+
+  (:requirements :strips)
+
+  (:predicates
+    (checked-object-graspable ?obj)
+    (clear ?obj)
+    (hand-empty )
+    (holding ?obj)
+    (on ?obj ?surface)
+  )
+
+  ; LLM-generated action
+  (:action check-object-graspable
+    :parameters (?obj)
+    :precondition (and)
+    :effect (checked-object-graspable ?obj)
+  )
+
+  ; LLM-generated action
+  (:action pick
+    :parameters (?obj ?surface)
+    :precondition (and (hand-empty) (on ?obj ?surface) (checked-object-graspable ?obj))
+    :effect (and (holding ?obj) (not (hand-empty)) (not (on ?obj ?surface)) (clear ?surface))
+  )
+
+  ; LLM-generated action
+  (:action place
+    :parameters (?obj ?surface)
+    :precondition (and (holding ?obj) (clear ?surface))
+    :effect (and (on ?obj ?surface) (hand-empty) (not (holding ?obj)) (not (clear ?surface)))
+  )
+
+)
+
+[1m[36m── Generated PDDL Problem ──────────────────────────────────────────────[0m
+;; Auto-generated PDDL problem: current_task
+;; Generated at: 2026-04-17 12:17:41
+
+(define (problem current_task)
+  (:domain task_execution)
+
+  (:objects
+    blue_block
+    brown_table
+    red_table
+  )
+
+  (:init
+    (clear blue_block)
+    (clear brown_table)
+    (clear red_table)
+    (hand-empty )
+    (on blue_block brown_table)
+  )
+
+  (:goal
+    (on blue_block red_table)
+  )
+)
+
+[1m[36m── Solving PDDL plan (with refinement) ─────────────────────────────────[0m
+
+======================================================================
+SOLVING PDDL PROBLEM
+======================================================================
+Algorithm: lama-first
+Backend: pyperplan
+Timeout: 60.0s
+
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m GENERATING PDDL FILES
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Syncing objects from tracker to PDDL...
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m     Found 3 objects in registry
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Adding 1 global predicates to initial state...
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m       Added global predicate: hand-empty
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Added 4 initial literals from L5 + affordances
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Setting goal state from task analysis...
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Generating files to outputs/stretch_demo/runs/20260417_121556/pddl...
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ PDDL files generated:
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Domain: outputs/stretch_demo/runs/20260417_121556/pddl/task_execution_domain.pddl
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Problem: outputs/stretch_demo/runs/20260417_121556/pddl/task_execution_problem.pddl
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Domain Summary:
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Types: 1
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Predicates: 5
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Actions: 3
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Problem Summary:
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Objects: 3
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Initial literals: 5
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m   • Goal literals: 1
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ======================================================================
+  • Running solver...
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Parsing Domain /home/fern-stretch/vlm-semantic-spatial-perception/outputs/stretch_demo/runs/20260417_121556/pddl/task_execution_domain.pddl
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Parsing Problem /home/fern-stretch/vlm-semantic-spatial-perception/outputs/stretch_demo/runs/20260417_121556/pddl/task_execution_problem.pddl
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m 5 Predicates parsed
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m 3 Actions parsed
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m 3 Objects parsed
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m 0 Constants parsed
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Grounding start: current_task
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Relevance analysis removed 0 facts
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Grounding end: current_task
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m 19 Variables created
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m 21 Operators created
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Search start: current_task
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Initial h value: 3.000000
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Goal reached. Start extraction of solution.
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m 4 Nodes expanded
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Search end: current_task
+[90m12:17:43[0m [36mINFO    [0m [90m[root][0m Search time: 0.00054
+[90m12:17:43[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+
+✓ Plan found (3 steps, cost: 3.0)
+
+Plan (3 steps):
+  1. (check-object-graspable blue_block)
+  2. (pick blue_block brown_table)
+  3. (place blue_block red_table)
+
+======================================================================
+
+  [32m✓[0m Plan: 3 steps — ['(check-object-graspable blue_block)', '(pick blue_block brown_table)', '(place blue_block red_table)']
+    [33msuccess:[0m True
+    [33mplan_length:[0m 3
+    [33msearch_time:[0m n/a
+  [32m✓[0m Plan found!
+    [33m  step 1:[0m (check-object-graspable blue_block)
+    [33m  step 2:[0m (pick blue_block brown_table)
+    [33m  step 3:[0m (place blue_block red_table)
+
+[1m[36m── Skill decomposition & execution ─────────────────────────────────────[0m
+    [33mstep 1:[0m (check-object-graspable blue_block)
+  [32m✓[0m   [check] checked-object-graspable(blue_block) ← TRUE (affordance 'graspable' confirmed)
+  [32m✓[0m   [check] Sensing action resolved (1/1 objects)
+    [33mstep 2:[0m (pick blue_block brown_table)
+[90m12:17:45[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+  [32m✓[0m   → 3 primitive(s): ['move_gripper_to_pose', 'close_gripper', 'retract_gripper'] (4.44s)
+[90m12:17:50[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing plan: SkillPlan(action_name='pick', primitives=[PrimitiveCall(name='move_gripper_to_pose', parameters={'target_pixel_yx': [581.0, 807.0], 'preset_orientation': 'top_down'}, frame='base', references={'object_id': 'blue_block', 'interaction_point': 'graspable'}, metadata={'resolved_interaction_point': {'snapshot_id': '20260417_161739_067-3af7ed', 'position_2d': [581, 807], 'position_3d': [0.38922184705734253, 0.07546138018369675, 1.2113536596298218], 'alternative_points': []}}), PrimitiveCall(name='close_gripper', parameters={}, frame='base', references={'object_id': 'blue_block'}, metadata={}), PrimitiveCall(name='retract_gripper', parameters={}, frame='base', references={'object_id': 'blue_block'}, metadata={})], diagnostics=SkillPlanDiagnostics(assumptions=[], warnings=[], freshness_notes=[], freshness={}, rationale='The plan is to pick the blue block. This involves moving the gripper to the graspable interaction point on the blue block with a top-down orientation, closing the gripper to grasp the block, and then retracting the gripper.', interaction_points=[]), registry_hash='9f5262ceaa7a09310b613adfef8428c47267e1efca8188bb3180b4350df083e3', source_snapshot_id='20260417_161739_067-3af7ed')
+[90m12:17:50[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m [prepare_plan] Translating 3 primitives
+[90m12:17:50[0m [33mWARNING [0m [90m[PrimitiveExecuto][0m [prepare_plan] [1] stripping unknown param 'point_label' from close_gripper
+[90m12:17:50[0m [33mWARNING [0m [90m[PrimitiveExecuto][0m [prepare_plan] [2] stripping unknown param 'point_label' from retract_gripper
+[90m12:17:50[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m [prepare_plan] Validation passed
+[90m12:17:50[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [1/3]: move_gripper_to_pose with parameters {'preset_orientation': 'top_down', 'target_position': [0.07863107492519009, -0.9205234362639763, 0.37791229533913706]}
+[90m12:17:50[0m [36mINFO    [0m [90m[StretchPyBulletP][0m move_gripper_to_pose: aligning base then extending to [0.07863107492519009, -0.9205234362639763, 0.37791229533913706]
+[90m12:17:50[0m [36mINFO    [0m [90m[StretchPyBulletP][0m move_gripper_to_pose: base yaw=-0.18 rad, aligned_xy=[0.002, -0.497]
+[90m12:17:54[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [2/3]: close_gripper with parameters {}
+[90m12:17:54[0m [36mINFO    [0m [90m[StretchPyBulletP][0m close_gripper
+[90m12:17:55[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [3/3]: retract_gripper with parameters {}
+[90m12:17:55[0m [36mINFO    [0m [90m[StretchPyBulletP][0m retract_gripper: moving to home
+  [32m✓[0m   executed=True (6.05s)
+    [33mstep 3:[0m (place blue_block red_table)
+[90m12:17:58[0m [36mINFO    [0m [90m[models][0m AFC is enabled with max remote calls: 10.
+  [32m✓[0m   → 6 primitive(s): ['move_gripper_to_pose', 'close_gripper', 'retract_gripper', 'move_gripper_to_pose', 'open_gripper', 'retract_gripper'] (7.15s)
+[90m12:18:05[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing plan: SkillPlan(action_name='place', primitives=[PrimitiveCall(name='move_gripper_to_pose', parameters={'target_pixel_yx': [581.0, 807.0], 'preset_orientation': 'top_down'}, frame='base', references={'object_id': 'blue_block', 'interaction_point': 'graspable'}, metadata={'resolved_interaction_point': {'snapshot_id': '20260417_161739_067-3af7ed', 'position_2d': [581, 807], 'position_3d': [0.38922184705734253, 0.07546138018369675, 1.2113536596298218], 'alternative_points': []}}), PrimitiveCall(name='close_gripper', parameters={}, frame='base', references={'object_id': 'blue_block'}, metadata={}), PrimitiveCall(name='retract_gripper', parameters={}, frame='base', references={'object_id': 'blue_block'}, metadata={}), PrimitiveCall(name='move_gripper_to_pose', parameters={'target_pixel_yx': [641.0, 159.0], 'preset_orientation': 'top_down', 'is_place': True}, frame='base', references={'object_id': 'red_table', 'interaction_point': 'supportable'}, metadata={'resolved_interaction_point': {'snapshot_id': '20260417_161739_067-3af7ed', 'position_2d': [641, 159], 'position_3d': [-0.43550461530685425, 0.1332365721464157, 1.2130494117736816], 'alternative_points': []}}), PrimitiveCall(name='open_gripper', parameters={}, frame='base', references={'object_id': 'blue_block'}, metadata={}), PrimitiveCall(name='retract_gripper', parameters={}, frame='base', references={'object_id': 'red_table'}, metadata={})], diagnostics=SkillPlanDiagnostics(assumptions=[], warnings=[], freshness_notes=[], freshness={}, rationale="The plan is to pick up the blue block from its current position and place it on the red table. This involves moving the gripper to the blue block's graspable point, closing the gripper, retracting, then moving to the red table's supportable point with a place action, opening the gripper, and finally retracting.", interaction_points=[]), registry_hash='36c162473eedffc15c6e7d2bc59c53d905255dd48cb134a7ced32832e0d5e2ac', source_snapshot_id='20260417_161739_067-3af7ed')
+[90m12:18:05[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m [prepare_plan] Translating 6 primitives
+[90m12:18:05[0m [33mWARNING [0m [90m[PrimitiveExecuto][0m [prepare_plan] [1] stripping unknown param 'point_label' from close_gripper
+[90m12:18:05[0m [33mWARNING [0m [90m[PrimitiveExecuto][0m [prepare_plan] [2] stripping unknown param 'point_label' from retract_gripper
+[90m12:18:05[0m [33mWARNING [0m [90m[PrimitiveExecuto][0m [prepare_plan] [4] stripping unknown param 'point_label' from open_gripper
+[90m12:18:05[0m [33mWARNING [0m [90m[PrimitiveExecuto][0m [prepare_plan] [5] stripping unknown param 'point_label' from retract_gripper
+[90m12:18:05[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m [prepare_plan] Validation passed
+[90m12:18:05[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [1/6]: move_gripper_to_pose with parameters {'preset_orientation': 'top_down', 'target_position': [0.0021183695621836834, -1.4311844365953266, 0.29690324453112493]}
+[90m12:18:05[0m [36mINFO    [0m [90m[StretchPyBulletP][0m move_gripper_to_pose: aligning base then extending to [0.0021183695621836834, -1.4311844365953266, 0.29690324453112493]
+[90m12:18:05[0m [33mWARNING [0m [90m[StretchPyBulletP][0m _find_aligned_base_position: no collision-free position found along axis (target=[0.0021183695621836834, -1.4311844365953266], yaw=-0.00)
+[90m12:18:05[0m [33mWARNING [0m [90m[StretchPyBulletP][0m move_gripper_to_pose: cannot find a collision-free aligned base position
+[90m12:18:06[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [2/6]: close_gripper with parameters {}
+[90m12:18:06[0m [36mINFO    [0m [90m[StretchPyBulletP][0m close_gripper
+[90m12:18:07[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [3/6]: retract_gripper with parameters {}
+[90m12:18:07[0m [36mINFO    [0m [90m[StretchPyBulletP][0m retract_gripper: moving to home
+[90m12:18:08[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [4/6]: move_gripper_to_pose with parameters {'preset_orientation': 'top_down', 'is_place': True, 'target_position': [-0.011654153957115845, -1.832016048058254, 1.019854780218939]}
+[90m12:18:08[0m [36mINFO    [0m [90m[StretchPyBulletP][0m move_gripper_to_pose: aligning base then extending to [-0.011654153957115845, -1.832016048058254, 1.059854780218939]
+[90m12:18:08[0m [33mWARNING [0m [90m[StretchPyBulletP][0m _find_aligned_base_position: no collision-free position found along axis (target=[-0.011654153957115845, -1.832016048058254], yaw=0.01)
+[90m12:18:08[0m [33mWARNING [0m [90m[StretchPyBulletP][0m move_gripper_to_pose: cannot find a collision-free aligned base position
+[90m12:18:09[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [5/6]: open_gripper with parameters {}
+[90m12:18:09[0m [36mINFO    [0m [90m[StretchPyBulletP][0m open_gripper
+[90m12:18:09[0m [36mINFO    [0m [90m[PrimitiveExecuto][0m Executing primitive [6/6]: retract_gripper with parameters {}
+[90m12:18:09[0m [36mINFO    [0m [90m[StretchPyBulletP][0m retract_gripper: moving to home
+  [32m✓[0m   executed=True (5.20s)
+
+[1m[36m── Saving orchestrator state ───────────────────────────────────────────[0m
+[90m12:18:17[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:18:17[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+  [32m✓[0m State saved → outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+
+[1m[36m── Shutting down ───────────────────────────────────────────────────────[0m
+[90m12:18:17[0m [36mINFO    [0m [90m[TaskOrchestrator][0m Shutting down Task Orchestrator...
+[90m12:18:17[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:18:17[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+[90m12:18:17[0m [36mINFO    [0m [90m[stretch_demo][0m Orchestrator state: idle → uninitialized
+[90m12:18:17[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Task Orchestrator shutdown complete
+
+[1m[34m========================================================================[0m
+[1m[34m  Stretch Demo Complete[0m
+[1m[34m========================================================================[0m
+    [33mTask:[0m Pick up the blue block from the brown table and place it on the red table.
+    [33mRun ID:[0m 20260417_121556
+    [33mPlan success:[0m True
+    [33mPlan length:[0m 3
+    [33mPlan:[0m ['(check-object-graspable blue_block)', '(pick blue_block brown_table)', '(place blue_block red_table)']
+    [33mOutput dir:[0m outputs/stretch_demo/runs/20260417_121556
+
+[1m[34m── Timing Report ───────────────────────────────────────────────────────[0m
+  [33mPerception pre-pass               [0m  32.08s  (22.5%)
+  [33mDomain generation (L1–L5)         [0m   3.87s  ( 2.7%)
+  [33mContinuous detection              [0m  56.77s  (39.9%)
+  [33mPDDL file generation              [0m   0.00s  ( 0.0%)
+  [33mPDDL solving (+ refinement)       [0m   0.03s  ( 0.0%)
+  [33mSkill decomposition (total)       [0m  11.59s  ( 8.1%)
+  [33mPrimitive execution (total)       [0m  11.25s  ( 7.9%)
+  [33mExecution phase (total)           [0m  28.99s  (20.4%)
+[90m12:18:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ Saved 3 objects to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/registry.json
+[90m12:18:19[0m [36mINFO    [0m [90m[TaskOrchestrator][0m ✓ State saved to outputs/stretch_demo/runs/20260417_121556/orchestrator_state/state.json
+nertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_accel_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_gyro_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: camera_gyro_optical_frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: No inertial data for link, using mass=1, localinertiadiagonal = 1,1,1, identity local inertial frame
+b3Printf: b3Warning[examples/Importers/ImportURDFDemo/BulletUrdfImporter.cpp,126]:
+
+b3Printf: link_grasp_center
+numActiveThreads = 0
+stopping threads
+Thread with taskId 0 exiting
+Thread TERMINATED
+destroy semaphore
+semaphore destroyed
+destroy main semaphore
+main semaphore destroyed
+finished
+numActiveThreads = 0
+btShutDownExampleBrowser stopping threads
+Thread with taskId 0 exiting
+Thread TERMINATED
+destroy semaphore
+semaphore destroyed
+destroy main semaphore
+main semaphore destroyed
