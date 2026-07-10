@@ -8,7 +8,9 @@ class Record:
     The class also has flags to indicate whether recording has started or stopped.
 
     joint_name: [waypoint1, waypoint2, ...]
-    waypoint: [position, velocity, time_stamp]
+    waypoint: [position, velocity, time_stamp, header_stamp]
+
+    header_stamp is the time the joint is idle in between waypoints.
 
     Note-to-self: the waypoints are recorded when the direction of the joint movement changes. However, the specific velocity/acceleration with which it moves is not recorded (because the velocity is 0 at these points)
     To add such functionality, perhaps record the velocity + acceleration curve throughout the motion trajectory, and record velocity reaches a maximum, and create another wayponit there with that specific velocity.
@@ -24,6 +26,7 @@ class Record:
         # note: in position mode, Stretch position commands are tracked by a trapezoidal motion profile.
 
         self.waypoints = {} 
+        self.pauses = {}
 
     def start_recording(self, time):
         """
@@ -48,15 +51,23 @@ class Record:
                     if len(self.waypoints[joint_name]) < 2 \
                         else math.copysign(1, prev_waypoint[0] - self.waypoints[joint_name][-2][0])  # Get the direction of the previous joint velocity (don't use velocity itself because it jumps between 0.001 and -0.001 at rest)
                 
+                if abs(velocity) <= 0.001 and abs(prev_waypoint[1]) > 0.001:
+                    self.pauses[joint_name] = time_stamp
+
                 if math.copysign(1, velocity) != prev_joint_direction:
-                    self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp])
+                    header_stamp = time_stamp if joint_name not in self.pauses else time_stamp - self.pauses[joint_name]
+                    self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp, header_stamp])
+                    self.pauses.pop(joint_name, None)  # Remove the pause entry for this joint
+                    
             else:
                 self.waypoints[joint_name] = []
-                self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp])
+                self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp, 0])
         elif self.stop and self.start: #stopped recording, but need to record the last waypoint
             self.start = False
             if joint_name in self.waypoints:
-                self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp])
+                header_stamp = time_stamp if joint_name not in self.pauses else time_stamp - self.pauses[joint_name]
+                self.waypoints[joint_name].append([round(position,3), round(velocity,3), time_stamp, header_stamp])
+                self.pauses.pop(joint_name, None)  # Remove the pause entry for this joint
 
             self.print_waypoints()
             
@@ -128,9 +139,10 @@ if __name__ == "__main__":
             rate.sleep()
 
         record.stop_recording()
-        
+
         print("Is recording?", record.is_recording(), flush=True)
         record.print_waypoints()
+        record.save_waypoints("/home/fern-stretch/vlm-semantic-spatial-perception/outputs/stretch_record/waypoints.json")
 
     except KeyboardInterrupt:
         print("WAYPOINTS:\n", flush=True)
